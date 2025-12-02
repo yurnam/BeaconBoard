@@ -126,13 +126,21 @@ def map_delete(map_id):
         flash('Map not found', 'error')
         return redirect(url_for('routes.map_settings'))
     
+    # Prevent deletion of active map
+    if map_obj.is_active:
+        flash('Cannot delete the active map. Please activate another map first.', 'error')
+        return redirect(url_for('routes.map_settings'))
+    
     # Delete the image file
     try:
         filepath = os.path.join(current_app.config['MAPS_FOLDER'], map_obj.image_filename)
         if os.path.exists(filepath):
             os.remove(filepath)
     except Exception as e:
-        flash(f'Error deleting file: {e}', 'error')
+        # Log the error but show generic message to user
+        current_app.logger.error(f'Error deleting map file {map_obj.image_filename}: {e}')
+        flash('Error deleting map file', 'error')
+        return redirect(url_for('routes.map_settings'))
     
     # Delete the database record
     db.session.delete(map_obj)
@@ -145,4 +153,10 @@ def map_delete(map_id):
 @routes_bp.route('/uploads/maps/<filename>')
 def serve_map(filename):
     """Serve uploaded map images"""
-    return send_from_directory(current_app.config['MAPS_FOLDER'], filename)
+    # Validate filename to prevent directory traversal
+    safe_filename = secure_filename(filename)
+    if safe_filename != filename:
+        # Filename contains unsafe characters
+        return "Invalid filename", 400
+    
+    return send_from_directory(current_app.config['MAPS_FOLDER'], safe_filename)
