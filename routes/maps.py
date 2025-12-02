@@ -20,11 +20,8 @@ def map_view():
     # Get active map
     active_map = Map.query.filter_by(is_active=True).first()
     
-    # Get all stations with positions
-    stations = Station.query.filter(
-        Station.x_norm.isnot(None),
-        Station.y_norm.isnot(None)
-    ).all()
+    # Get all active stations (including those without positions set)
+    stations = Station.query.filter_by(active=True).all()
     
     # Get all non-ignored devices with positions
     devices = Device.query.filter(

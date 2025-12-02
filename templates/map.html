@@ -51,6 +51,21 @@
         background: #e67e22;
     }
     
+    .station-marker.unpositioned {
+        background: #9b59b6;
+        border-color: #8e44ad;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+    
+    .station-marker.unpositioned.editable {
+        border-color: #f39c12;
+    }
+    
     .device-marker {
         width: 20px;
         height: 20px;
@@ -137,7 +152,8 @@
 </div>
 
 <div class="edit-instructions" id="edit-instructions">
-    <strong>📍 Edit Mode Active:</strong> Drag station markers (orange-highlighted circles) to set their positions on the map. 
+    <strong>📍 Edit Mode Active:</strong> Drag station markers to set their positions on the map. 
+    Red circles are positioned stations. <strong>Purple pulsing circles</strong> are unpositioned stations (stacked in top-left) - drag them to their correct locations.
     Positions are saved automatically when you release the mouse. Click "Done Editing" when finished.
 </div>
 
@@ -207,24 +223,33 @@ function renderStations() {
     const mapImage = document.getElementById('map-image');
     const containerRect = mapImage.getBoundingClientRect();
     
+    let unpositionedCount = 0;
+    
     stations.forEach(station => {
-        if (station.x_norm === null || station.y_norm === null) {
-            return;
-        }
-        
         const marker = document.createElement('div');
         marker.className = 'marker station-marker';
         marker.dataset.stationId = station.id;
         
-        const x = station.x_norm * 100;
-        const y = station.y_norm * 100;
+        let x, y;
+        
+        // If station has no position, place it in a visible default location
+        if (station.x_norm === null || station.y_norm === null) {
+            // Stack unpositioned stations in top-left area
+            x = 10 + (unpositionedCount * 5);
+            y = 10 + (unpositionedCount * 5);
+            marker.classList.add('unpositioned');
+            unpositionedCount++;
+        } else {
+            x = station.x_norm * 100;
+            y = station.y_norm * 100;
+        }
         
         marker.style.left = x + '%';
         marker.style.top = y + '%';
         
         const label = document.createElement('div');
         label.className = 'marker-label';
-        label.textContent = station.name;
+        label.textContent = station.name + (station.x_norm === null ? ' (not positioned)' : '');
         marker.appendChild(label);
         
         // Drag support
