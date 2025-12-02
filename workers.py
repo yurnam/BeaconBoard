@@ -166,9 +166,11 @@ class WebhookWorker:
                 with self.app.app_context():
                     self._send_new_device_webhooks(device_data)
                 
+            except __import__('queue').Empty:
+                # Queue timeout - this is normal, continue loop
+                continue
             except Exception as e:
-                if str(e) != '':  # Ignore empty queue timeout
-                    print(f"Webhook worker error: {e}")
+                print(f"Webhook worker error: {e}")
     
     def _send_new_device_webhooks(self, device_data):
         """Send webhooks for new device detection"""
@@ -204,19 +206,21 @@ def send_webhook(webhook: Webhook, payload: Dict) -> bool:
     try:
         headers = {'Content-Type': 'application/json'}
         
+        # Prepare JSON payload
+        payload_json = json.dumps(payload, separators=(',', ':'))
+        
         # Add HMAC signature if secret is configured
         if webhook.secret:
-            payload_bytes = json.dumps(payload).encode('utf-8')
             signature = hmac.new(
                 webhook.secret.encode('utf-8'),
-                payload_bytes,
+                payload_json.encode('utf-8'),
                 hashlib.sha256
             ).hexdigest()
             headers['X-Signature'] = f'sha256={signature}'
         
         response = requests.post(
             webhook.url,
-            json=payload,
+            data=payload_json,
             headers=headers,
             timeout=5
         )

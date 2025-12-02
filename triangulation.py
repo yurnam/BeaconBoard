@@ -78,7 +78,7 @@ def trilaterate_2d(stations: List[Tuple[float, float]], distances: List[float]) 
             return (x, y)
         
         x = (C * E - F * B) / denominator
-        y = (C * D - A * F) / denominator
+        y = (A * F - C * D) / denominator
         
         # Clamp to valid range (0-1 for normalized coordinates)
         x = max(0.0, min(1.0, x))

@@ -60,8 +60,8 @@ def upload_observations():
             db.session.add(device)
             db.session.flush()  # Get the device ID
         else:
-            # Update last_seen
-            if timestamp > device.last_seen:
+            # Update last_seen (both should be timezone-naive UTC)
+            if device.last_seen is None or timestamp > device.last_seen:
                 device.last_seen = timestamp
             
             # Update protocol if needed

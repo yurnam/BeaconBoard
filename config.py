@@ -32,6 +32,8 @@ class Config:
     # SocketIO
     SOCKETIO_MESSAGE_QUEUE = None
     SOCKETIO_ASYNC_MODE = 'threading'  # Use threading instead of eventlet for Python 3.12 compatibility
+    # Note: For production with high load, consider using eventlet with Python 3.11 or earlier,
+    # or use a message queue (Redis/RabbitMQ) for horizontal scaling
     
     @staticmethod
     def init_app(app):
