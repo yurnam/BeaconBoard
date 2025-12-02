@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}Live Map - BeaconBoard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .map-container {
+        position: relative;
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        border: 2px solid #ccc;
+        background: #f5f5f5;
+    }
+    
+    .map-image {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+    
+    .marker {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .station-marker {
+        width: 30px;
+        height: 30px;
+        background: #e74c3c;
+        border: 3px solid white;
+        border-radius: 50%;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        z-index: 100;
+    }
+    
+    .station-marker:hover {
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+    
+    .device-marker {
+        width: 20px;
+        height: 20px;
+        border: 2px solid white;
+        border-radius: 50%;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        z-index: 50;
+    }
+    
+    .marker-label {
+        position: absolute;
+        top: 35px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 12px;
+        white-space: nowrap;
+        display: none;
+    }
+    
+    .marker:hover .marker-label {
+        display: block;
+    }
+    
+    .controls {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .status {
+        padding: 10px;
+        background: #e8f5e9;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    
+    .status.disconnected {
+        background: #ffebee;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Live Device Map</h1>
+
+<div class="status" id="connection-status">
+    <span id="status-text">Connecting to server...</span>
+</div>
+
+{% if not map_data %}
+<div class="alert alert-warning">
+    No active map. Please <a href="{{ url_for('routes.map_settings') }}">upload a map</a> first.
+</div>
+{% else %}
+
+<div class="controls">
+    <button id="edit-mode-btn" class="btn btn-secondary" onclick="toggleEditMode()">
+        Edit Station Positions
+    </button>
+    <label>
+        <input type="checkbox" id="show-devices" checked> Show Devices
+    </label>
+    <label>
+        <input type="checkbox" id="show-stations" checked> Show Stations
+    </label>
+</div>
+
+<div class="map-container" id="map-container">
+    <img src="{{ url_for('static', filename='../uploads/maps/' + map_data.image_filename) }}" 
+         alt="{{ map_data.name }}" 
+         class="map-image"
+         id="map-image">
+    
+    <!-- Stations will be rendered here -->
+    <div id="stations-layer"></div>
+    
+    <!-- Devices will be rendered here -->
+    <div id="devices-layer"></div>
+</div>
+
+<script>
+const mapData = {
+    width: {{ map_data.width_px }},
+    height: {{ map_data.height_px }}
+};
+
+const stations = {{ stations | tojson }};
+const initialDevices = {{ devices | tojson }};
+
+let editMode = false;
+let socket = null;
+let draggedStation = null;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    renderStations();
+    renderDevices(initialDevices);
+    connectWebSocket();
+    
+    document.getElementById('show-devices').addEventListener('change', function() {
+        document.getElementById('devices-layer').style.display = this.checked ? 'block' : 'none';
+    });
+    
+    document.getElementById('show-stations').addEventListener('change', function() {
+        document.getElementById('stations-layer').style.display = this.checked ? 'block' : 'none';
+    });
+});
+
+function connectWebSocket() {
+    socket = io();
+    
+    socket.on('connect', function() {
+        document.getElementById('status-text').textContent = '✓ Connected - Receiving live updates';
+        document.getElementById('connection-status').className = 'status';
+    });
+    
+    socket.on('disconnect', function() {
+        document.getElementById('status-text').textContent = '✗ Disconnected from server';
+        document.getElementById('connection-status').className = 'status disconnected';
+    });
+    
+    socket.on('device_positions', function(data) {
+        renderDevices(data.devices);
+    });
+}
+
+function renderStations() {
+    const container = document.getElementById('stations-layer');
+    container.innerHTML = '';
+    
+    const mapImage = document.getElementById('map-image');
+    const containerRect = mapImage.getBoundingClientRect();
+    
+    stations.forEach(station => {
+        if (station.x_norm === null || station.y_norm === null) {
+            return;
+        }
+        
+        const marker = document.createElement('div');
+        marker.className = 'marker station-marker';
+        marker.dataset.stationId = station.id;
+        
+        const x = station.x_norm * 100;
+        const y = station.y_norm * 100;
+        
+        marker.style.left = x + '%';
+        marker.style.top = y + '%';
+        
+        const label = document.createElement('div');
+        label.className = 'marker-label';
+        label.textContent = station.name;
+        marker.appendChild(label);
+        
+        // Drag support
+        marker.addEventListener('mousedown', startDrag);
+        
+        container.appendChild(marker);
+    });
+}
+
+function renderDevices(devices) {
+    const container = document.getElementById('devices-layer');
+    container.innerHTML = '';
+    
+    devices.forEach(device => {
+        if (device.last_x_norm === null || device.last_y_norm === null || device.ignored) {
+            return;
+        }
+        
+        const marker = document.createElement('div');
+        marker.className = 'marker device-marker';
+        marker.dataset.deviceMac = device.mac;
+        
+        marker.style.left = (device.last_x_norm * 100) + '%';
+        marker.style.top = (device.last_y_norm * 100) + '%';
+        marker.style.backgroundColor = device.color || '#3498db';
+        
+        const label = document.createElement('div');
+        label.className = 'marker-label';
+        label.textContent = device.friendly_name || device.mac;
+        marker.appendChild(label);
+        
+        container.appendChild(marker);
+    });
+}
+
+function toggleEditMode() {
+    editMode = !editMode;
+    const btn = document.getElementById('edit-mode-btn');
+    
+    if (editMode) {
+        btn.textContent = 'Save Positions';
+        btn.className = 'btn btn-primary';
+    } else {
+        btn.textContent = 'Edit Station Positions';
+        btn.className = 'btn btn-secondary';
+    }
+}
+
+function startDrag(e) {
+    if (!editMode) return;
+    
+    draggedStation = e.currentTarget;
+    const onMouseMove = (e) => {
+        const container = document.getElementById('map-container');
+        const rect = container.getBoundingClientRect();
+        
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        
+        draggedStation.style.left = Math.max(0, Math.min(100, x)) + '%';
+        draggedStation.style.top = Math.max(0, Math.min(100, y)) + '%';
+    };
+    
+    const onMouseUp = async (e) => {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        
+        if (draggedStation) {
+            const container = document.getElementById('map-container');
+            const rect = container.getBoundingClientRect();
+            
+            const x_norm = ((e.clientX - rect.left) / rect.width);
+            const y_norm = ((e.clientY - rect.top) / rect.height);
+            
+            const stationId = draggedStation.dataset.stationId;
+            
+            // Save to server
+            try {
+                const response = await fetch(`/api/v1/stations/${stationId}/position`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        x_norm: Math.max(0, Math.min(1, x_norm)),
+                        y_norm: Math.max(0, Math.min(1, y_norm))
+                    })
+                });
+                
+                if (!response.ok) {
+                    alert('Failed to save station position');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to save station position');
+            }
+            
+            draggedStation = null;
+        }
+    };
+    
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+}
+</script>
+
+{% endif %}
+{% endblock %}

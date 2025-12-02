@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BeaconBoard{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <a href="{{ url_for('routes.index') }}">🔔 BeaconBoard</a>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="{{ url_for('routes.index') }}">Dashboard</a></li>
+                <li><a href="{{ url_for('routes.map_view') }}">Map</a></li>
+                <li><a href="{{ url_for('routes.stations_list') }}">Stations</a></li>
+                <li><a href="{{ url_for('routes.devices_list') }}">Devices</a></li>
+                <li><a href="{{ url_for('routes.map_settings') }}">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 BeaconBoard - IoT Device Tracking System</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

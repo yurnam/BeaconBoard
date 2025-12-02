@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Devices - BeaconBoard{% endblock %}
+
+{% block content %}
+<h1>Devices Management</h1>
+
+<div class="filters">
+    <label>
+        <input type="checkbox" id="show-ignored" {% if show_ignored %}checked{% endif %}>
+        Show Ignored
+    </label>
+    <label>
+        <input type="checkbox" id="unnamed-only" {% if unnamed_only %}checked{% endif %}>
+        Unnamed Only
+    </label>
+</div>
+
+<div class="section">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>MAC Address</th>
+                    <th>Name</th>
+                    <th>Icon</th>
+                    <th>Color</th>
+                    <th>Protocol</th>
+                    <th>First Seen</th>
+                    <th>Last Seen</th>
+                    <th>Ignored</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for device in devices %}
+                <tr data-device-id="{{ device.id }}">
+                    <td><code>{{ device.mac }}</code></td>
+                    <td>
+                        <input type="text" class="inline-edit" value="{{ device.friendly_name or '' }}" 
+                               data-device-id="{{ device.id }}" data-field="friendly_name"
+                               placeholder="Enter name...">
+                    </td>
+                    <td>
+                        <select class="inline-edit" data-device-id="{{ device.id }}" data-field="icon">
+                            <option value="question" {% if device.icon == 'question' %}selected{% endif %}>❓</option>
+                            <option value="phone" {% if device.icon == 'phone' %}selected{% endif %}>📱</option>
+                            <option value="laptop" {% if device.icon == 'laptop' %}selected{% endif %}>💻</option>
+                            <option value="car" {% if device.icon == 'car' %}selected{% endif %}>🚗</option>
+                            <option value="tag" {% if device.icon == 'tag' %}selected{% endif %}>🏷️</option>
+                            <option value="watch" {% if device.icon == 'watch' %}selected{% endif %}>⌚</option>
+                            <option value="tablet" {% if device.icon == 'tablet' %}selected{% endif %}>📲</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="color" class="inline-edit color-picker" value="{{ device.color }}"
+                               data-device-id="{{ device.id }}" data-field="color">
+                    </td>
+                    <td><span class="badge badge-{{ device.protocol }}">{{ device.protocol }}</span></td>
+                    <td>{{ device.first_seen.strftime('%Y-%m-%d %H:%M:%S') if device.first_seen else 'N/A' }}</td>
+                    <td>{{ device.last_seen.strftime('%Y-%m-%d %H:%M:%S') if device.last_seen else 'N/A' }}</td>
+                    <td>
+                        <input type="checkbox" class="toggle-ignored" data-device-id="{{ device.id }}"
+                               {% if device.ignored %}checked{% endif %}>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteDevice({{ device.id }})">Delete</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" class="text-center">No devices found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Filter controls
+document.getElementById('show-ignored').addEventListener('change', function() {
+    updateFilters();
+});
+
+document.getElementById('unnamed-only').addEventListener('change', function() {
+    updateFilters();
+});
+
+function updateFilters() {
+    const showIgnored = document.getElementById('show-ignored').checked;
+    const unnamedOnly = document.getElementById('unnamed-only').checked;
+    
+    const params = new URLSearchParams();
+    if (showIgnored) params.append('show_ignored', 'true');
+    if (unnamedOnly) params.append('unnamed_only', 'true');
+    
+    window.location.href = '/devices?' + params.toString();
+}
+
+// Inline editing
+document.querySelectorAll('.inline-edit').forEach(input => {
+    input.addEventListener('change', async function() {
+        const deviceId = this.dataset.deviceId;
+        const field = this.dataset.field;
+        const value = this.value;
+        
+        try {
+            const response = await fetch(`/api/v1/devices/${deviceId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({[field]: value})
+            });
+            
+            if (!response.ok) {
+                alert('Failed to update device');
+                location.reload();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to update device');
+        }
+    });
+});
+
+// Toggle ignored
+document.querySelectorAll('.toggle-ignored').forEach(checkbox => {
+    checkbox.addEventListener('change', async function() {
+        const deviceId = this.dataset.deviceId;
+        const ignored = this.checked;
+        
+        try {
+            const response = await fetch(`/api/v1/devices/${deviceId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ignored: ignored})
+            });
+            
+            if (!response.ok) {
+                alert('Failed to update device');
+                this.checked = !ignored;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to update device');
+            this.checked = !ignored;
+        }
+    });
+});
+
+async function deleteDevice(deviceId) {
+    if (!confirm('Are you sure you want to delete this device?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/v1/devices/${deviceId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Failed to delete device');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to delete device');
+    }
+}
+</script>
+{% endblock %}

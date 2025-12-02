@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Map Settings - BeaconBoard{% endblock %}
+
+{% block content %}
+<h1>Map Settings</h1>
+
+<div class="section">
+    <h2>Upload New Map</h2>
+    <form action="{{ url_for('routes.map_upload') }}" method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="name">Map Name:</label>
+            <input type="text" id="name" name="name" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="file">Map Image:</label>
+            <input type="file" id="file" name="file" class="form-control" accept="image/*" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Upload Map</button>
+    </form>
+</div>
+
+<div class="section">
+    <h2>Existing Maps</h2>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Dimensions</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for map in maps %}
+                <tr>
+                    <td>{{ map.name }}</td>
+                    <td>{{ map.width_px }} × {{ map.height_px }} px</td>
+                    <td>
+                        <span class="badge badge-{% if map.is_active %}success{% else %}secondary{% endif %}">
+                            {{ 'Active' if map.is_active else 'Inactive' }}
+                        </span>
+                    </td>
+                    <td>{{ map.created_at.strftime('%Y-%m-%d %H:%M') if map.created_at else 'N/A' }}</td>
+                    <td>
+                        {% if not map.is_active %}
+                        <form action="{{ url_for('routes.map_activate', map_id=map.id) }}" method="POST" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-primary">Activate</button>
+                        </form>
+                        {% endif %}
+                        <a href="{{ url_for('static', filename='../uploads/maps/' + map.image_filename) }}" 
+                           target="_blank" class="btn btn-sm btn-secondary">Preview</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center">No maps uploaded yet</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
