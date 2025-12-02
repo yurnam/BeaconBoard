@@ -113,7 +113,7 @@
 </div>
 
 <div class="map-container" id="map-container">
-    <img src="{{ url_for('static', filename='../uploads/maps/' + map_data.image_filename) }}" 
+    <img src="{{ url_for('routes.serve_map', filename=map_data.image_filename) }}" 
          alt="{{ map_data.name }}" 
          class="map-image"
          id="map-image">

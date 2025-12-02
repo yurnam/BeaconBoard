@@ -50,8 +50,13 @@
                             <button type="submit" class="btn btn-sm btn-primary">Activate</button>
                         </form>
                         {% endif %}
-                        <a href="{{ url_for('static', filename='../uploads/maps/' + map.image_filename) }}" 
+                        <a href="{{ url_for('routes.serve_map', filename=map.image_filename) }}" 
                            target="_blank" class="btn btn-sm btn-secondary">Preview</a>
+                        <form action="{{ url_for('routes.map_delete', map_id=map.id) }}" method="POST" 
+                              style="display: inline;" 
+                              onsubmit="return confirm('Are you sure you want to delete this map?');">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
                     </td>
                 </tr>
                 {% else %}

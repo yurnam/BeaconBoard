@@ -1,5 +1,5 @@
 """Map routes"""
-from flask import render_template, request, redirect, url_for, flash, current_app
+from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from werkzeug.utils import secure_filename
 from PIL import Image
 import os
@@ -116,3 +116,33 @@ def map_activate(map_id):
         flash('Map not found', 'error')
     
     return redirect(url_for('routes.map_settings'))
+
+
+@routes_bp.route('/map/<int:map_id>/delete', methods=['POST'])
+def map_delete(map_id):
+    """Delete a map"""
+    map_obj = Map.query.get(map_id)
+    if not map_obj:
+        flash('Map not found', 'error')
+        return redirect(url_for('routes.map_settings'))
+    
+    # Delete the image file
+    try:
+        filepath = os.path.join(current_app.config['MAPS_FOLDER'], map_obj.image_filename)
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    except Exception as e:
+        flash(f'Error deleting file: {e}', 'error')
+    
+    # Delete the database record
+    db.session.delete(map_obj)
+    db.session.commit()
+    
+    flash('Map deleted successfully', 'success')
+    return redirect(url_for('routes.map_settings'))
+
+
+@routes_bp.route('/uploads/maps/<filename>')
+def serve_map(filename):
+    """Serve uploaded map images"""
+    return send_from_directory(current_app.config['MAPS_FOLDER'], filename)
