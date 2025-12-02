@@ -152,9 +152,12 @@
 </div>
 
 <div class="edit-instructions" id="edit-instructions">
-    <strong>📍 Edit Mode Active:</strong> Drag station markers to set their positions on the map. 
-    Red circles are positioned stations. <strong>Purple pulsing circles</strong> are unpositioned stations (stacked in top-left) - drag them to their correct locations.
-    Positions are saved automatically when you release the mouse. Click "Done Editing" when finished.
+    <strong>📍 Edit Mode Active:</strong> Drag station markers to set their positions on the map.
+    <ul style="margin: 5px 0 0 20px; padding: 0;">
+        <li><strong style="color: #e74c3c;">Red circles</strong> = Positioned stations</li>
+        <li><strong style="color: #9b59b6;">Purple pulsing circles</strong> = Unpositioned stations (in top-left)</li>
+    </ul>
+    Positions save automatically when you release the mouse. Click "Done Editing" when finished.
 </div>
 
 <div class="map-container" id="map-container">
@@ -178,6 +181,11 @@ const mapData = {
 
 const stations = {{ stations | tojson }};
 const initialDevices = {{ devices | tojson }};
+
+// Constants for unpositioned station placement
+const UNPOSITIONED_START_X = 10;  // Starting X position (%)
+const UNPOSITIONED_START_Y = 10;  // Starting Y position (%)
+const UNPOSITIONED_OFFSET = 5;    // Offset between stacked stations (%)
 
 let editMode = false;
 let socket = null;
@@ -235,8 +243,8 @@ function renderStations() {
         // If station has no position, place it in a visible default location
         if (station.x_norm === null || station.y_norm === null) {
             // Stack unpositioned stations in top-left area
-            x = 10 + (unpositionedCount * 5);
-            y = 10 + (unpositionedCount * 5);
+            x = UNPOSITIONED_START_X + (unpositionedCount * UNPOSITIONED_OFFSET);
+            y = UNPOSITIONED_START_Y + (unpositionedCount * UNPOSITIONED_OFFSET);
             marker.classList.add('unpositioned');
             unpositionedCount++;
         } else {
