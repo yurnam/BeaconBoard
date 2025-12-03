@@ -55,10 +55,12 @@ class TriangulationWorker:
         window_seconds = self.app.config.get('OBSERVATION_WINDOW_SECONDS', 10)
         min_stations = self.app.config.get('MIN_STATIONS_FOR_TRIANGULATION', 3)
         smoothing_factor = self.app.config.get('RSSI_SMOOTHING_FACTOR', 0.3)
+        inactive_timeout = self.app.config.get('DEVICE_INACTIVE_TIMEOUT_SECONDS', 300)
         
         cutoff_time = datetime.utcnow() - timedelta(seconds=window_seconds)
+        inactive_cutoff = datetime.utcnow() - timedelta(seconds=inactive_timeout)
         
-        # Get all non-ignored devices seen recently
+        # Get all non-ignored devices seen recently (within observation window)
         recent_devices = Device.query.filter(
             Device.last_seen >= cutoff_time,
             Device.ignored == False
@@ -89,6 +91,11 @@ class TriangulationWorker:
                 for station_uuid, rssi_list in station_rssi.items()
             }
             
+            # Calculate overall average RSSI for this device
+            if station_avg_rssi:
+                overall_avg_rssi = int(sum(station_avg_rssi.values()) / len(station_avg_rssi))
+                device.last_rssi = overall_avg_rssi
+            
             # Get station positions
             station_positions = []
             distances = []
@@ -116,13 +123,14 @@ class TriangulationWorker:
                     device.last_x_norm = position[0]
                     device.last_y_norm = position[1]
                     
-                    # Add to broadcast list
-                    device_positions.append(device.to_dict())
+                    # Only add to broadcast list if device is still active (not inactive)
+                    if device.last_seen and device.last_seen >= inactive_cutoff:
+                        device_positions.append(device.to_dict())
         
         # Commit all position updates
         db.session.commit()
         
-        # Broadcast positions via SocketIO
+        # Broadcast positions via SocketIO (only active devices)
         if device_positions and self.socketio:
             self.socketio.emit('device_positions', {
                 'timestamp': datetime.utcnow().isoformat(),
@@ -230,3 +238,92 @@ def send_webhook(webhook: Webhook, payload: Dict) -> bool:
     except Exception as e:
         print(f"Webhook send error ({webhook.name}): {e}")
         return False
+
+
+class UnauthorizedDeviceMonitor:
+    """Background worker to monitor and notify about unauthorized devices"""
+    
+    def __init__(self, app, interval_seconds=30):
+        self.app = app
+        self.interval_seconds = interval_seconds
+        self.running = False
+        self.thread = None
+    
+    def start(self):
+        """Start the unauthorized device monitor thread"""
+        if self.running:
+            return
+        
+        self.running = True
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
+        print("Unauthorized device monitor started")
+    
+    def stop(self):
+        """Stop the unauthorized device monitor thread"""
+        self.running = False
+        if self.thread:
+            self.thread.join(timeout=5)
+        print("Unauthorized device monitor stopped")
+    
+    def _run(self):
+        """Main worker loop"""
+        while self.running:
+            try:
+                with self.app.app_context():
+                    self._check_unauthorized_devices()
+                time.sleep(self.interval_seconds)
+            except Exception as e:
+                print(f"Unauthorized device monitor error: {e}")
+                time.sleep(self.interval_seconds)
+    
+    def _check_unauthorized_devices(self):
+        """Check for unauthorized devices that have been present too long"""
+        notification_timeout = self.app.config.get('UNAUTHORIZED_DEVICE_NOTIFICATION_TIMEOUT_SECONDS', 120)
+        cutoff_time = datetime.utcnow() - timedelta(seconds=notification_timeout)
+        
+        # Find unauthorized devices that:
+        # 1. Are not ignored
+        # 2. Are not authorized
+        # 3. First seen before cutoff time (been around long enough)
+        # 4. Haven't been notified yet OR were notified long ago
+        unauthorized_devices = Device.query.filter(
+            Device.ignored == False,
+            Device.authorized == False,
+            Device.first_seen <= cutoff_time,
+            db.or_(
+                Device.unauthorized_notified_at.is_(None),
+                Device.unauthorized_notified_at <= datetime.utcnow() - timedelta(hours=24)  # Re-notify daily
+            )
+        ).all()
+        
+        for device in unauthorized_devices:
+            # Send webhook notifications
+            self._send_unauthorized_webhook(device)
+            
+            # Mark as notified
+            device.unauthorized_notified_at = datetime.utcnow()
+        
+        if unauthorized_devices:
+            db.session.commit()
+    
+    def _send_unauthorized_webhook(self, device):
+        """Send webhook for unauthorized device"""
+        webhooks = Webhook.query.filter_by(
+            enabled=True,
+            event_type='device_unauthorized'
+        ).all()
+        
+        for webhook in webhooks:
+            payload = {
+                'event': 'device_unauthorized',
+                'mac': device.mac,
+                'friendly_name': device.friendly_name,
+                'first_seen': device.first_seen.isoformat() if device.first_seen else None,
+                'last_seen': device.last_seen.isoformat() if device.last_seen else None,
+                'protocol': device.protocol,
+                'last_rssi': device.last_rssi,
+                'duration_minutes': int((datetime.utcnow() - device.first_seen).total_seconds() / 60) if device.first_seen else 0
+            }
+            
+            send_webhook(webhook, payload)

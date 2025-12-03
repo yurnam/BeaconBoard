@@ -62,6 +62,8 @@ def update_device(device_id):
         device.color = data['color']
     if 'ignored' in data:
         device.ignored = bool(data['ignored'])
+    if 'authorized' in data:
+        device.authorized = bool(data['authorized'])
     
     db.session.commit()
     

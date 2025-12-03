@@ -17,7 +17,6 @@
 </div>
 
 <div class="section">
-    <h2>Active Devices</h2>
     <div class="table-responsive">
         <table class="table">
             <thead>
@@ -27,16 +26,14 @@
                     <th>Icon</th>
                     <th>Color</th>
                     <th>Protocol</th>
-                    <th>RSSI</th>
                     <th>First Seen</th>
                     <th>Last Seen</th>
-                    <th>Authorized</th>
                     <th>Ignored</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                {% for device in active_devices %}
+                {% for device in devices %}
                 <tr data-device-id="{{ device.id }}">
                     <td><code>{{ device.mac }}</code></td>
                     <td>
@@ -60,22 +57,9 @@
                                data-device-id="{{ device.id }}" data-field="color">
                     </td>
                     <td><span class="badge badge-{{ device.protocol }}">{{ device.protocol }}</span></td>
-                    <td>
-                        <span class="rssi-value" data-rssi="{{ device.last_rssi or -100 }}">
-                            {% if device.last_rssi %}
-                                {{ device.last_rssi }} dBm
-                            {% else %}
-                                N/A
-                            {% endif %}
-                        </span>
-                    </td>
                     <td>{{ device.first_seen.strftime('%Y-%m-%d %H:%M:%S') if device.first_seen else 'N/A' }}</td>
                     <td>{{ device.last_seen.strftime('%Y-%m-%d %H:%M:%S') if device.last_seen else 'N/A' }}</td>
                     <td>
-                        <input type="checkbox" class="toggle-authorized" data-device-id="{{ device.id }}"
-                               {% if device.authorized %}checked{% endif %}>
-                    </td>
-                    <td>
                         <input type="checkbox" class="toggle-ignored" data-device-id="{{ device.id }}"
                                {% if device.ignored %}checked{% endif %}>
                     </td>
@@ -85,60 +69,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="11" class="text-center">No active devices found</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div class="section" style="margin-top: 30px;">
-    <h2>Inactive Devices</h2>
-    <p style="color: #666;">Devices not seen for more than 5 minutes</p>
-    <div class="table-responsive">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>MAC Address</th>
-                    <th>Name</th>
-                    <th>Protocol</th>
-                    <th>Last RSSI</th>
-                    <th>Last Seen</th>
-                    <th>Authorized</th>
-                    <th>Ignored</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for device in inactive_devices %}
-                <tr data-device-id="{{ device.id }}" style="opacity: 0.6;">
-                    <td><code>{{ device.mac }}</code></td>
-                    <td>{{ device.friendly_name or 'Unknown' }}</td>
-                    <td><span class="badge badge-{{ device.protocol }}">{{ device.protocol }}</span></td>
-                    <td>
-                        {% if device.last_rssi %}
-                            {{ device.last_rssi }} dBm
-                        {% else %}
-                            N/A
-                        {% endif %}
-                    </td>
-                    <td>{{ device.last_seen.strftime('%Y-%m-%d %H:%M:%S') if device.last_seen else 'N/A' }}</td>
-                    <td>
-                        <input type="checkbox" class="toggle-authorized" data-device-id="{{ device.id }}"
-                               {% if device.authorized %}checked{% endif %}>
-                    </td>
-                    <td>
-                        <input type="checkbox" class="toggle-ignored" data-device-id="{{ device.id }}"
-                               {% if device.ignored %}checked{% endif %}>
-                    </td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" onclick="deleteDevice({{ device.id }})">Delete</button>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="8" class="text-center">No inactive devices</td>
+                    <td colspan="9" class="text-center">No devices found</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -194,31 +125,6 @@ document.querySelectorAll('.inline-edit').forEach(input => {
     });
 });
 
-// Toggle authorized
-document.querySelectorAll('.toggle-authorized').forEach(checkbox => {
-    checkbox.addEventListener('change', async function() {
-        const deviceId = this.dataset.deviceId;
-        const authorized = this.checked;
-        
-        try {
-            const response = await fetch(`/api/v1/devices/${deviceId}`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({authorized: authorized})
-            });
-            
-            if (!response.ok) {
-                alert('Failed to update device');
-                this.checked = !authorized;
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Failed to update device');
-            this.checked = !authorized;
-        }
-    });
-});
-
 // Toggle ignored
 document.querySelectorAll('.toggle-ignored').forEach(checkbox => {
     checkbox.addEventListener('change', async function() {
@@ -264,21 +170,5 @@ async function deleteDevice(deviceId) {
         alert('Failed to delete device');
     }
 }
-
-// Color-code RSSI values
-document.querySelectorAll('.rssi-value').forEach(el => {
-    const rssi = parseInt(el.dataset.rssi);
-    if (rssi > -50) {
-        el.style.color = '#27ae60';  // green - excellent
-    } else if (rssi > -60) {
-        el.style.color = '#2ecc71';  // light green - good
-    } else if (rssi > -70) {
-        el.style.color = '#f39c12';  // orange - fair
-    } else if (rssi > -80) {
-        el.style.color = '#e67e22';  // dark orange - poor
-    } else {
-        el.style.color = '#e74c3c';  // red - very poor
-    }
-});
 </script>
 {% endblock %}

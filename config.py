@@ -25,6 +25,10 @@ class Config:
     MIN_STATIONS_FOR_TRIANGULATION = 3
     RSSI_SMOOTHING_FACTOR = 0.3  # For exponential moving average
     
+    # Device activity settings
+    DEVICE_INACTIVE_TIMEOUT_SECONDS = 300  # 5 minutes - configurable
+    UNAUTHORIZED_DEVICE_NOTIFICATION_TIMEOUT_SECONDS = 120  # 2 minutes - configurable
+    
     # Webhook settings
     WEBHOOK_TIMEOUT_SECONDS = 5
     WEBHOOK_RETRY_ATTEMPTS = 3

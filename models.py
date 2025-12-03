@@ -74,10 +74,15 @@ class Device(db.Model):
     icon = db.Column(db.String(64), default='question')  # phone, laptop, car, tag, etc.
     color = db.Column(db.String(16), default='#3498db')  # hex color for UI
     ignored = db.Column(db.Boolean, default=False)
+    authorized = db.Column(db.Boolean, default=False)  # For authorization tracking
+    unauthorized_notified_at = db.Column(db.DateTime)  # Track when notification was sent
     
     # Last estimated position (normalized map coords)
     last_x_norm = db.Column(db.Float)
     last_y_norm = db.Column(db.Float)
+    
+    # Signal strength tracking
+    last_rssi = db.Column(db.Integer)  # Most recent average RSSI
     
     protocol = db.Column(db.String(16), default='wifi')  # 'wifi', 'ble', 'both'
     
@@ -91,8 +96,10 @@ class Device(db.Model):
             'icon': self.icon,
             'color': self.color,
             'ignored': self.ignored,
+            'authorized': self.authorized,
             'last_x_norm': self.last_x_norm,
             'last_y_norm': self.last_y_norm,
+            'last_rssi': self.last_rssi,
             'protocol': self.protocol
         }
 

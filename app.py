@@ -7,7 +7,7 @@ from config import config
 from models import db
 from api import api_bp
 from routes import routes_bp
-from workers import TriangulationWorker, WebhookWorker
+from workers import TriangulationWorker, WebhookWorker, UnauthorizedDeviceMonitor
 from api.observations import new_devices_queue
 
 # Initialize extensions
@@ -17,6 +17,7 @@ migrate = Migrate()
 # Global workers
 triangulation_worker = None
 webhook_worker = None
+unauthorized_monitor = None
 
 
 def create_app(config_name='default'):
@@ -43,7 +44,7 @@ def create_app(config_name='default'):
         db.create_all()
     
     # Start background workers
-    global triangulation_worker, webhook_worker
+    global triangulation_worker, webhook_worker, unauthorized_monitor
     
     triangulation_worker = TriangulationWorker(
         app, 
@@ -54,6 +55,9 @@ def create_app(config_name='default'):
     
     webhook_worker = WebhookWorker(app, new_devices_queue)
     webhook_worker.start()
+    
+    unauthorized_monitor = UnauthorizedDeviceMonitor(app, interval_seconds=30)
+    unauthorized_monitor.start()
     
     return app
 
