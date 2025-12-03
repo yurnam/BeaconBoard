@@ -94,7 +94,9 @@ class TriangulationWorker:
             # Calculate overall average RSSI for this device
             if station_avg_rssi:
                 overall_avg_rssi = int(sum(station_avg_rssi.values()) / len(station_avg_rssi))
-                device.last_rssi = overall_avg_rssi
+                # Only update if RSSI changed to reduce database writes
+                if device.last_rssi != overall_avg_rssi:
+                    device.last_rssi = overall_avg_rssi
             
             # Get station positions
             station_positions = []
@@ -281,6 +283,7 @@ class UnauthorizedDeviceMonitor:
         """Check for unauthorized devices that have been present too long"""
         notification_timeout = self.app.config.get('UNAUTHORIZED_DEVICE_NOTIFICATION_TIMEOUT_SECONDS', 120)
         cutoff_time = datetime.utcnow() - timedelta(seconds=notification_timeout)
+        re_notification_cutoff = datetime.utcnow() - timedelta(hours=24)
         
         # Find unauthorized devices that:
         # 1. Are not ignored
@@ -293,7 +296,7 @@ class UnauthorizedDeviceMonitor:
             Device.first_seen <= cutoff_time,
             db.or_(
                 Device.unauthorized_notified_at.is_(None),
-                Device.unauthorized_notified_at <= datetime.utcnow() - timedelta(hours=24)  # Re-notify daily
+                Device.unauthorized_notified_at <= re_notification_cutoff
             )
         ).all()
         

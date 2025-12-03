@@ -35,4 +35,5 @@ def devices_list():
                          active_devices=active_devices,
                          inactive_devices=inactive_devices,
                          show_ignored=show_ignored,
-                         unnamed_only=unnamed_only)
+                         unnamed_only=unnamed_only,
+                         inactive_timeout_minutes=int(inactive_timeout / 60))
