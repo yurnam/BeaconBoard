@@ -7,6 +7,7 @@ from config import config
 from models import db
 from api import api_bp
 from routes import routes_bp
+from routes.settings import settings_bp
 from workers import TriangulationWorker, WebhookWorker, UnauthorizedDeviceMonitor
 from api.observations import new_devices_queue
 
@@ -38,6 +39,7 @@ def create_app(config_name='default'):
     # Register blueprints
     app.register_blueprint(api_bp)
     app.register_blueprint(routes_bp)
+    app.register_blueprint(settings_bp)
     
     # Create database tables
     with app.app_context():
