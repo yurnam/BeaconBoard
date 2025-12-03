@@ -134,7 +134,8 @@ class SimulationWorker:
                 logger.error(f"Failed to fetch stations: {response.status_code}")
                 return
             
-            stations_data = response.json()
+            stations_response = response.json()
+            stations_data = stations_response.get('stations', [])
         except Exception as e:
             logger.error(f"Error fetching stations: {e}")
             return
