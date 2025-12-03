@@ -27,23 +27,17 @@ class SimulationWorker:
         {
             'uuid': 'sim_station_1',
             'name': 'Test Station 1',
-            'description': 'Simulated station in bedroom',
-            'x_norm': 0.25,
-            'y_norm': 0.25
+            'description': 'Simulated station in bedroom'
         },
         {
             'uuid': 'sim_station_2',
             'name': 'Test Station 2',
-            'description': 'Simulated station in kitchen',
-            'x_norm': 0.75,
-            'y_norm': 0.25
+            'description': 'Simulated station in kitchen'
         },
         {
             'uuid': 'sim_station_3',
             'name': 'Test Station 3',
-            'description': 'Simulated station in living room',
-            'x_norm': 0.5,
-            'y_norm': 0.75
+            'description': 'Simulated station in living room'
         }
     ]
     
@@ -123,21 +117,6 @@ class SimulationWorker:
                 )
                 if response.status_code == 200:
                     logger.info(f"Registered test station: {station['name']}")
-                    
-                    # Also set the station position
-                    station_data = response.json().get('station', {})
-                    station_id = station_data.get('id')
-                    if station_id:
-                        pos_response = requests.post(
-                            f"{self.server_url}/api/v1/stations/{station_id}/position",
-                            json={
-                                'x_norm': station['x_norm'],
-                                'y_norm': station['y_norm']
-                            },
-                            timeout=5
-                        )
-                        if pos_response.status_code == 200:
-                            logger.info(f"Set position for test station: {station['name']}")
                 else:
                     logger.error(f"Failed to register station {station['name']}: {response.status_code}")
             except Exception as e:
@@ -148,14 +127,34 @@ class SimulationWorker:
         # Update device positions (simulate movement)
         self._update_device_positions()
         
-        # Generate observations from each station
-        for station in self.TEST_STATIONS:
+        # Fetch current station positions from API
+        try:
+            response = requests.get(f"{self.server_url}/api/v1/stations", timeout=5)
+            if response.status_code != 200:
+                logger.error(f"Failed to fetch stations: {response.status_code}")
+                return
+            
+            stations_data = response.json()
+        except Exception as e:
+            logger.error(f"Error fetching stations: {e}")
+            return
+        
+        # Generate observations from each positioned station
+        for station_data in stations_data:
+            # Only generate observations from simulation stations that have been positioned
+            if not station_data['uuid'].startswith('sim_station_'):
+                continue
+                
+            if station_data['x_norm'] is None or station_data['y_norm'] is None:
+                logger.debug(f"Skipping unpositioned station: {station_data['name']}")
+                continue
+            
             observations = []
             
             for device in self.device_positions:
                 # Calculate distance from station to device
-                dx = device['x'] - station['x_norm']
-                dy = device['y'] - station['y_norm']
+                dx = device['x'] - station_data['x_norm']
+                dy = device['y'] - station_data['y_norm']
                 distance = (dx**2 + dy**2) ** 0.5
                 
                 # Convert distance to RSSI (inverse of triangulation)
@@ -184,17 +183,17 @@ class SimulationWorker:
                 response = requests.post(
                     f"{self.server_url}/api/v1/observations/batch",
                     json={
-                        'station_uuid': station['uuid'],
+                        'station_uuid': station_data['uuid'],
                         'observations': observations
                     },
                     timeout=5
                 )
                 if response.status_code == 200:
-                    logger.debug(f"Sent {len(observations)} observations from {station['name']}")
+                    logger.debug(f"Sent {len(observations)} observations from {station_data['name']}")
                 else:
-                    logger.error(f"Failed to send observations from {station['name']}: {response.status_code}")
+                    logger.error(f"Failed to send observations from {station_data['name']}: {response.status_code}")
             except Exception as e:
-                logger.error(f"Error sending observations from {station['name']}: {e}")
+                logger.error(f"Error sending observations from {station_data['name']}: {e}")
                 
     def _update_device_positions(self):
         """Update mock device positions to simulate movement"""

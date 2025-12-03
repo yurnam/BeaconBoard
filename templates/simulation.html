@@ -9,8 +9,9 @@
     <h3 style="margin-top: 0; color: #856404;">ℹ️ About Simulation Mode</h3>
     <p style="margin-bottom: 0; color: #856404;">
         Simulation mode creates 3 virtual test stations and 4 moving mock devices to test the system without physical hardware.
-        The test stations automatically register, position themselves on the map, and send realistic mock RSSI observations every 2 seconds.
-        Enable this mode to test triangulation, map visualization, and live tracking features before deploying real Raspberry Pi stations.
+        The test stations register automatically but need to be positioned manually on the map (just like real stations).
+        Once positioned, they send realistic mock RSSI observations every 2 seconds. Enable this mode to test triangulation, 
+        map visualization, and live tracking features before deploying real Raspberry Pi stations.
     </p>
 </div>
 
@@ -46,16 +47,18 @@
 <div style="background: white; padding: 20px; border-radius: 8px;">
     <h3>How to Use</h3>
     <ol>
-        <li><strong>Start Simulation:</strong> Click "Start Simulation" to create test stations and devices</li>
-        <li><strong>Position Stations:</strong> Go to the Map page and use "Edit Station Positions" to place the 3 test stations on your floor plan</li>
-        <li><strong>Watch Live Tracking:</strong> Mock devices will move around the map in real-time, with positions calculated via triangulation</li>
+        <li><strong>Start Simulation:</strong> Click "Start Simulation" to create and register 3 test stations and 4 mock devices</li>
+        <li><strong>Position Stations:</strong> Go to the Map page - test stations will appear as purple pulsing circles</li>
+        <li><strong>Drag & Drop:</strong> Use "Edit Station Positions" to drag the test stations to desired locations on your floor plan</li>
+        <li><strong>Watch Live Tracking:</strong> Once positioned, mock devices will move around and be tracked via triangulation in real-time</li>
         <li><strong>Test Features:</strong> Customize device names/icons on the Devices page, test webhooks, etc.</li>
         <li><strong>Stop When Ready:</strong> Click "Stop Simulation" when your real Raspberry Pi stations are ready</li>
     </ol>
     
     <div style="background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 4px; padding: 15px; margin-top: 20px;">
-        <strong>💡 Tip:</strong> Simulation data won't interfere with real stations. All simulated MACs start with "SIM:" prefix.
-        When you deploy real hardware, you can run both simultaneously for comparison.
+        <strong>💡 Tip:</strong> Test stations start unpositioned (purple pulsing circles). Position them anywhere on your map 
+        to create different triangulation scenarios. Move them around to see how device positions change based on station placement!
+        All simulated MACs start with "SIM:" prefix and won't interfere with real stations.
     </div>
 </div>
 
