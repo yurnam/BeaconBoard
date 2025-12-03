@@ -1,0 +1,40 @@
+# BeaconBoard Bettercap Caplet
+# This caplet configures Bettercap for WiFi and BLE scanning with API access
+# Copy to /usr/local/share/bettercap/caplets/ on your Raspberry Pi
+
+# Enable API server for the agent to connect to
+set api.rest.address 0.0.0.0
+set api.rest.port 8081
+set api.rest.username user
+set api.rest.password pass
+set api.rest.alloworigin *
+api.rest on
+
+# WiFi scanning configuration
+# NOTE: Replace wlan0 with your WiFi interface name
+set wifi.interface wlan0
+wifi.recon on
+
+# Show WiFi clients and access points
+set wifi.show.sort clients desc
+set wifi.show.filter 
+
+# BLE scanning configuration
+# NOTE: Replace hci0 with your Bluetooth interface name
+set ble.device hci0
+ble.recon on
+
+# Reduce console spam - only log important events
+events.ignore endpoint
+events.ignore wifi.client.probe
+events.ignore wifi.ap.new
+events.ignore wifi.client.new
+events.ignore ble.device.new
+events.ignore ble.device.lost
+
+# Optional: Save session to file
+# set events.stream.output /var/log/bettercap/events.log
+# events.stream on
+
+# Keep the caplet running
+sleep 1

@@ -107,15 +107,19 @@ class BeaconBoardClient:
 
 
 class WiFiScanner:
-    """WiFi device scanner (stub for now)"""
+    """WiFi device scanner using Bettercap API"""
     
-    def __init__(self, interface: str):
+    def __init__(self, interface: str, bettercap_url: str = 'http://localhost:8081', 
+                 bettercap_user: str = 'user', bettercap_pass: str = 'pass'):
         self.interface = interface
-        logger.info(f"WiFi scanner initialized on {interface}")
+        self.bettercap_url = bettercap_url.rstrip('/')
+        self.bettercap_auth = (bettercap_user, bettercap_pass)
+        self.session = requests.Session()
+        logger.info(f"WiFi scanner initialized on {interface} using Bettercap at {bettercap_url}")
     
     def scan(self, duration: float) -> List[Dict]:
         """
-        Scan for WiFi devices
+        Scan for WiFi devices using Bettercap API
         
         Returns list of observations with format:
         {
@@ -127,41 +131,85 @@ class WiFiScanner:
             'ssid': 'MyWiFi'
         }
         """
-        # TODO: Implement real WiFi scanning using tcpdump/scapy
-        # For now, return stub data for testing
-        
-        logger.debug(f"Scanning WiFi for {duration} seconds...")
+        logger.debug(f"Scanning WiFi for {duration} seconds using Bettercap...")
         time.sleep(duration)
         
-        # Stub: Generate some random test data
-        import random
         observations = []
         
-        # Simulate finding 2-3 devices
-        for i in range(random.randint(2, 3)):
-            mac = f"AA:BB:CC:DD:EE:{i:02X}"
-            observations.append({
-                'device_mac': mac,
-                'timestamp': int(time.time()),
-                'rssi': random.randint(-90, -40),
-                'protocol': 'wifi',
-                'channel': random.choice([1, 6, 11]),
-                'ssid': f'TestNetwork{i}'
-            })
+        try:
+            # Get WiFi access points from Bettercap
+            response = self.session.get(
+                f"{self.bettercap_url}/api/session/wifi",
+                auth=self.bettercap_auth,
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Process access points
+                if 'aps' in data:
+                    for ap in data['aps'].values():
+                        mac = ap.get('mac', '').upper()
+                        if not mac:
+                            continue
+                        
+                        # Get the latest RSSI value
+                        rssi = ap.get('rssi', -100)
+                        
+                        observations.append({
+                            'device_mac': mac,
+                            'timestamp': int(time.time()),
+                            'rssi': rssi,
+                            'protocol': 'wifi',
+                            'channel': ap.get('channel', 0),
+                            'ssid': ap.get('hostname', ap.get('alias', ''))
+                        })
+                
+                # Process WiFi clients (stations)
+                if 'clients' in data:
+                    for client in data['clients'].values():
+                        mac = client.get('mac', '').upper()
+                        if not mac:
+                            continue
+                        
+                        rssi = client.get('rssi', -100)
+                        
+                        observations.append({
+                            'device_mac': mac,
+                            'timestamp': int(time.time()),
+                            'rssi': rssi,
+                            'protocol': 'wifi',
+                            'channel': client.get('channel', 0),
+                            'ssid': ''
+                        })
+                
+                logger.debug(f"Found {len(observations)} WiFi devices")
+            else:
+                logger.warning(f"Bettercap API returned status {response.status_code}")
+                
+        except requests.RequestException as e:
+            logger.error(f"Error communicating with Bettercap API: {e}")
+        except Exception as e:
+            logger.error(f"Error parsing Bettercap data: {e}")
         
         return observations
 
 
 class BLEScanner:
-    """BLE device scanner (stub for now)"""
+    """BLE device scanner using Bettercap API"""
     
-    def __init__(self, interface: str):
+    def __init__(self, interface: str, bettercap_url: str = 'http://localhost:8081',
+                 bettercap_user: str = 'user', bettercap_pass: str = 'pass'):
         self.interface = interface
-        logger.info(f"BLE scanner initialized on {interface}")
+        self.bettercap_url = bettercap_url.rstrip('/')
+        self.bettercap_auth = (bettercap_user, bettercap_pass)
+        self.session = requests.Session()
+        logger.info(f"BLE scanner initialized on {interface} using Bettercap at {bettercap_url}")
     
     def scan(self, duration: float) -> List[Dict]:
         """
-        Scan for BLE devices
+        Scan for BLE devices using Bettercap API
         
         Returns list of observations with format:
         {
@@ -171,25 +219,47 @@ class BLEScanner:
             'protocol': 'ble'
         }
         """
-        # TODO: Implement real BLE scanning using BlueZ/bleak
-        # For now, return stub data for testing
-        
-        logger.debug(f"Scanning BLE for {duration} seconds...")
+        logger.debug(f"Scanning BLE for {duration} seconds using Bettercap...")
         time.sleep(duration)
         
-        # Stub: Generate some random test data
-        import random
         observations = []
         
-        # Simulate finding 1-2 devices
-        for i in range(random.randint(1, 2)):
-            mac = f"11:22:33:44:55:{i:02X}"
-            observations.append({
-                'device_mac': mac,
-                'timestamp': int(time.time()),
-                'rssi': random.randint(-90, -40),
-                'protocol': 'ble'
-            })
+        try:
+            # Get BLE devices from Bettercap
+            response = self.session.get(
+                f"{self.bettercap_url}/api/session/ble",
+                auth=self.bettercap_auth,
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Process BLE devices
+                if 'devices' in data:
+                    for device in data['devices'].values():
+                        mac = device.get('mac', '').upper()
+                        if not mac:
+                            continue
+                        
+                        # Get the latest RSSI value
+                        rssi = device.get('rssi', -100)
+                        
+                        observations.append({
+                            'device_mac': mac,
+                            'timestamp': int(time.time()),
+                            'rssi': rssi,
+                            'protocol': 'ble'
+                        })
+                
+                logger.debug(f"Found {len(observations)} BLE devices")
+            else:
+                logger.warning(f"Bettercap BLE API returned status {response.status_code}")
+                
+        except requests.RequestException as e:
+            logger.error(f"Error communicating with Bettercap BLE API: {e}")
+        except Exception as e:
+            logger.error(f"Error parsing Bettercap BLE data: {e}")
         
         return observations
 
@@ -200,8 +270,24 @@ class Agent:
     def __init__(self, config: Config):
         self.config = config
         self.client = BeaconBoardClient(config.get('server_url'))
-        self.wifi_scanner = WiFiScanner(config.get('wifi_interface'))
-        self.ble_scanner = BLEScanner(config.get('ble_interface'))
+        
+        # Get Bettercap connection details
+        bettercap_url = config.get('bettercap_url', 'http://localhost:8081')
+        bettercap_user = config.get('bettercap_user', 'user')
+        bettercap_pass = config.get('bettercap_pass', 'pass')
+        
+        self.wifi_scanner = WiFiScanner(
+            config.get('wifi_interface'),
+            bettercap_url,
+            bettercap_user,
+            bettercap_pass
+        )
+        self.ble_scanner = BLEScanner(
+            config.get('ble_interface'),
+            bettercap_url,
+            bettercap_user,
+            bettercap_pass
+        )
         self.running = False
     
     def start(self):
@@ -283,6 +369,9 @@ def main():
                     'server_url': 'http://localhost:5000',
                     'wifi_interface': 'wlan0',
                     'ble_interface': 'hci0',
+                    'bettercap_url': 'http://localhost:8081',
+                    'bettercap_user': 'user',
+                    'bettercap_pass': 'pass',
                     'batch_interval_sec': 5,
                     'max_batch_size': 200
                 }
