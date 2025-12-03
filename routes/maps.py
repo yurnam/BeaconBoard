@@ -30,10 +30,14 @@ def map_view():
         Device.last_y_norm.isnot(None)
     ).all()
     
+    # Convert to dicts for JSON serialization
+    stations_data = [s.to_dict() for s in stations]
+    devices_data = [d.to_dict() for d in devices]
+    
     return render_template('map.html',
                          map_data=active_map,
-                         stations=stations,
-                         devices=devices)
+                         stations=stations_data,
+                         devices=devices_data)
 
 
 @routes_bp.route('/map/settings')
