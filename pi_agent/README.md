@@ -2,11 +2,37 @@
 
 Raspberry Pi client agent for scanning WiFi and BLE devices using Bettercap.
 
-## Prerequisites
+## Quick Setup (Automated)
 
-### Install Bettercap
+The easiest way to set up the agent is using the automated setup script:
 
-Bettercap is used for WiFi and BLE scanning. Install it on your Raspberry Pi:
+```bash
+# Copy agent files to your Raspberry Pi
+scp -r pi_agent/ pi@raspberry-pi:~/
+
+# SSH to your Pi
+ssh pi@raspberry-pi
+
+# Run the setup script
+cd ~/pi_agent
+sudo ./setup.sh
+```
+
+The setup script will:
+- ✅ Install all system dependencies
+- ✅ **Automatically install Bettercap** (including Go if needed)
+- ✅ Configure Bettercap with the beaconboard caplet
+- ✅ Create systemd services for both Bettercap and the agent
+- ✅ Set up configuration file with your station details
+- ✅ Start everything automatically
+
+**That's it!** Your station will be scanning and sending data to the server.
+
+## Manual Installation (Advanced)
+
+If you prefer to install Bettercap manually or already have it installed:
+
+### Install Bettercap Manually
 
 ```bash
 # Install dependencies
@@ -14,26 +40,23 @@ sudo apt update
 sudo apt install -y build-essential libpcap-dev libusb-1.0-0-dev libnetfilter-queue-dev
 
 # Install Go (if not already installed)
-wget https://go.dev/dl/go1.21.0.linux-arm64.tar.gz
-sudo tar -C /usr/local -xzf go1.21.0.linux-arm64.tar.gz
+wget https://go.dev/dl/go1.21.5.linux-arm64.tar.gz
+sudo tar -C /usr/local -xzf go1.21.5.linux-arm64.tar.gz
 echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 source ~/.bashrc
 
-# Install Bettercap
-go install github.com/bettercap/bettercap@latest
-sudo mv ~/go/bin/bettercap /usr/local/bin/
-
-# Or use prebuilt package
-curl -s https://api.github.com/repos/bettercap/bettercap/releases/latest | \
-  grep "browser_download_url.*linux_arm64.zip" | cut -d : -f 2,3 | tr -d \" | \
-  wget -qi -
-unzip bettercap_linux_arm64_*.zip
-sudo mv bettercap /usr/local/bin/
+# Install Bettercap from source
+git clone https://github.com/bettercap/bettercap.git
+cd bettercap
+make build
+sudo make install
 ```
 
-### Configure Bettercap
+### Configure Bettercap Caplet
 
-Create `/usr/local/share/bettercap/caplets/beaconboard.cap`:
+The `beaconboard.cap` caplet is included and will be installed automatically by `setup.sh`.
+
+For manual setup, create `/usr/local/share/bettercap/caplets/beaconboard.cap`:
 
 ```
 # BeaconBoard Bettercap Caplet
@@ -59,40 +82,28 @@ events.ignore endpoint
 events.ignore wifi.client.probe
 ```
 
-### Run Bettercap as Service
+See the included `beaconboard.cap` file for the complete configuration.
 
-Create `/etc/systemd/system/bettercap.service`:
+## What Gets Installed
 
-```ini
-[Unit]
-Description=Bettercap
-After=network.target
+When you run `sudo ./setup.sh`, the following components are installed and configured:
 
-[Service]
-Type=simple
-User=root
-ExecStart=/usr/local/bin/bettercap -caplet beaconboard
-Restart=always
-RestartSec=10
+### System Packages
+- Python 3 and pip
+- Git, build tools, libpcap, libusb, libnetfilter-queue
+- Go programming language (if not already installed)
 
-[Install]
-WantedBy=multi-user.target
-```
+### Bettercap
+- Built from source and installed to `/usr/local/bin/bettercap`
+- Systemd service created at `/etc/systemd/system/bettercap.service`
+- Caplet installed at `/usr/local/share/bettercap/caplets/beaconboard.cap`
+- Configured to start automatically on boot
 
-Enable and start:
-```bash
-sudo systemctl enable bettercap
-sudo systemctl start bettercap
-sudo systemctl status bettercap
-```
-
-## Installation
-
-1. Copy this directory to your Raspberry Pi
-2. Install Python dependencies:
-   ```bash
-   pip3 install requests
-   ```
+### BeaconBoard Agent
+- Agent script installed at `~/beaconboard/agent.py`
+- Configuration file at `/etc/beaconboard/config.json`
+- Systemd service created at `/etc/systemd/system/beaconboard-agent.service`
+- Configured to start automatically on boot
 
 ## Configuration
 

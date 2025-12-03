@@ -19,12 +19,97 @@ fi
 ACTUAL_USER=${SUDO_USER:-$USER}
 USER_HOME=$(eval echo ~$ACTUAL_USER)
 
-echo "Installing dependencies..."
+echo "Installing system dependencies..."
 apt update
-apt install -y python3 python3-pip
+apt install -y python3 python3-pip git build-essential libpcap-dev libusb-1.0-0-dev libnetfilter-queue-dev
 
 echo "Installing Python packages..."
 pip3 install requests
+
+echo ""
+echo "======================================"
+echo "Installing Bettercap..."
+echo "======================================"
+echo ""
+
+# Check if bettercap is already installed
+if command -v bettercap &> /dev/null; then
+    echo "Bettercap is already installed ($(bettercap -version 2>&1 | head -n1))"
+    read -p "Do you want to reinstall/update it? (y/N): " REINSTALL
+    if [[ ! "$REINSTALL" =~ ^[Yy]$ ]]; then
+        echo "Skipping Bettercap installation."
+        SKIP_BETTERCAP=1
+    fi
+fi
+
+if [ -z "$SKIP_BETTERCAP" ]; then
+    # Install Go if not installed
+    if ! command -v go &> /dev/null; then
+        echo "Installing Go programming language..."
+        GO_VERSION="1.21.5"
+        GO_ARCH="arm64"
+        
+        # Detect architecture
+        ARCH=$(uname -m)
+        if [[ "$ARCH" == "armv7l" ]] || [[ "$ARCH" == "armv6l" ]]; then
+            GO_ARCH="armv6l"
+        elif [[ "$ARCH" == "aarch64" ]]; then
+            GO_ARCH="arm64"
+        fi
+        
+        wget https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz -O /tmp/go.tar.gz
+        rm -rf /usr/local/go
+        tar -C /usr/local -xzf /tmp/go.tar.gz
+        rm /tmp/go.tar.gz
+        
+        # Add Go to PATH
+        export PATH=$PATH:/usr/local/go/bin
+        echo 'export PATH=$PATH:/usr/local/go/bin' >> /etc/profile
+        echo "Go installed successfully"
+    else
+        echo "Go is already installed ($(go version))"
+        export PATH=$PATH:/usr/local/go/bin
+    fi
+    
+    # Install Bettercap from source
+    echo "Building and installing Bettercap from source..."
+    TEMP_DIR=$(mktemp -d)
+    cd $TEMP_DIR
+    git clone https://github.com/bettercap/bettercap.git
+    cd bettercap
+    make build
+    make install
+    cd /
+    rm -rf $TEMP_DIR
+    
+    echo "Bettercap installed successfully"
+    bettercap -version
+fi
+
+echo ""
+echo "======================================"
+echo "Configuring Bettercap Service..."
+echo "======================================"
+echo ""
+
+# Create Bettercap systemd service
+cat > /etc/systemd/system/bettercap.service <<'EOF'
+[Unit]
+Description=Bettercap Network Monitoring
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/bettercap -caplet beaconboard
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "Bettercap service created"
 
 echo "Creating configuration directory..."
 mkdir -p /etc/beaconboard
@@ -101,25 +186,46 @@ WantedBy=multi-user.target
 EOF
 
 echo ""
-echo "Enabling and starting service..."
+echo "Enabling and starting services..."
 systemctl daemon-reload
+
+# Start Bettercap first
+systemctl enable bettercap
+systemctl restart bettercap
+
+# Wait a moment for Bettercap to start
+sleep 3
+
+# Start BeaconBoard agent
 systemctl enable beaconboard-agent
-systemctl start beaconboard-agent
+systemctl restart beaconboard-agent
 
 echo ""
 echo "======================================"
 echo "Setup Complete!"
 echo "======================================"
 echo ""
-echo "Agent is now running. Check status with:"
+echo "Services Status:"
+echo "  Bettercap:  $(systemctl is-active bettercap)"
+echo "  Agent:      $(systemctl is-active beaconboard-agent)"
+echo ""
+echo "Check service status with:"
+echo "  sudo systemctl status bettercap"
 echo "  sudo systemctl status beaconboard-agent"
 echo ""
 echo "View logs with:"
+echo "  sudo journalctl -u bettercap -f"
 echo "  sudo journalctl -u beaconboard-agent -f"
 echo ""
-echo "IMPORTANT: Make sure Bettercap is installed and running!"
-echo "  sudo systemctl status bettercap"
+echo "Test Bettercap API:"
+echo "  curl -u user:$BETTERCAP_PASS http://localhost:8081/api/session/wifi"
 echo ""
 echo "Configuration file: /etc/beaconboard/config.json"
 echo "Agent directory: $INSTALL_DIR"
+echo "Bettercap caplet: /usr/local/share/bettercap/caplets/beaconboard.cap"
+echo ""
+echo "IMPORTANT: If WiFi scanning doesn't work, make sure:"
+echo "  1. Your WiFi adapter supports monitor mode"
+echo "  2. NetworkManager is disabled on the WiFi interface"
+echo "  3. The interface is not being used by wpa_supplicant"
 echo ""
