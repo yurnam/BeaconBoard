@@ -13,7 +13,7 @@ def get_simulation_status():
     worker = get_simulation_worker()
     return jsonify({
         'enabled': worker.enabled if worker else False,
-        'running': worker.thread.is_alive() if worker and worker.thread else False
+        'running': (worker and worker.thread and worker.thread.is_alive()) or False
     })
 
 

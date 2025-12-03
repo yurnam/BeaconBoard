@@ -99,13 +99,16 @@
 </style>
 
 <script>
+    // Configuration constants
+    const STATUS_POLL_INTERVAL = 3000; // Poll status every 3 seconds
+    
     // Check status on page load
     window.addEventListener('load', function() {
         updateStatus();
         loadSimulationInfo();
         
-        // Update status every 3 seconds
-        setInterval(updateStatus, 3000);
+        // Update status periodically
+        setInterval(updateStatus, STATUS_POLL_INTERVAL);
     });
     
     function updateStatus() {

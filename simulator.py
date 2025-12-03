@@ -12,6 +12,16 @@ logger = logging.getLogger(__name__)
 class SimulationWorker:
     """Background worker that generates mock observation data from test stations"""
     
+    # RSSI calculation constants
+    TX_POWER = -30  # Transmit power in dBm
+    PATH_LOSS_EXPONENT = 2  # Path loss exponent (n)
+    DISTANCE_SCALE = 100  # Scale normalized distance (0-1) to meters
+    RSSI_NOISE = 5  # Random noise range in dB
+    
+    # Movement simulation constants
+    VELOCITY_JITTER = 0.002  # Random velocity change per update
+    MAX_VELOCITY = 0.02  # Maximum velocity in normalized units
+    
     # Test station configurations
     TEST_STATIONS = [
         {
@@ -150,12 +160,11 @@ class SimulationWorker:
                 
                 # Convert distance to RSSI (inverse of triangulation)
                 # Using path loss model: RSSI = TxPower - 10*n*log10(distance)
-                # Assume TxPower = -30, n = 2
                 if distance < 0.01:
                     distance = 0.01  # Avoid log(0)
                     
-                rssi = -30 - (10 * 2 * (distance * 100) ** 0.5)  # Scale distance by 100
-                rssi = int(rssi + random.uniform(-5, 5))  # Add noise
+                rssi = self.TX_POWER - (10 * self.PATH_LOSS_EXPONENT * (distance * self.DISTANCE_SCALE) ** 0.5)
+                rssi = int(rssi + random.uniform(-self.RSSI_NOISE, self.RSSI_NOISE))  # Add noise
                 
                 # Clamp RSSI to realistic range
                 rssi = max(-100, min(-20, rssi))
@@ -203,13 +212,12 @@ class SimulationWorker:
                 device['y'] = max(0, min(1, device['y']))
             
             # Add random jitter to velocity
-            device['vx'] += random.uniform(-0.002, 0.002)
-            device['vy'] += random.uniform(-0.002, 0.002)
+            device['vx'] += random.uniform(-self.VELOCITY_JITTER, self.VELOCITY_JITTER)
+            device['vy'] += random.uniform(-self.VELOCITY_JITTER, self.VELOCITY_JITTER)
             
             # Clamp velocity
-            max_vel = 0.02
-            device['vx'] = max(-max_vel, min(max_vel, device['vx']))
-            device['vy'] = max(-max_vel, min(max_vel, device['vy']))
+            device['vx'] = max(-self.MAX_VELOCITY, min(self.MAX_VELOCITY, device['vx']))
+            device['vy'] = max(-self.MAX_VELOCITY, min(self.MAX_VELOCITY, device['vy']))
 
 
 # Global simulation worker instance
