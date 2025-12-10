@@ -332,3 +332,60 @@ code {
     font-family: 'Courier New', monospace;
     font-size: 0.9rem;
 }
+
+/* Navigation enhancements */
+.nav-divider {
+    border-left: 1px solid rgba(255,255,255,0.2);
+    margin: 0 10px;
+}
+
+.nav-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nav-user span {
+    color: rgba(255,255,255,0.8);
+    font-size: 14px;
+}
+
+.btn-logout {
+    background: #e74c3c !important;
+    padding: 5px 15px !important;
+    border-radius: 4px !important;
+    font-size: 13px !important;
+}
+
+.btn-logout:hover {
+    background: #c0392b !important;
+}
+
+/* Form styling */
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.btn-block {
+    width: 100%;
+}

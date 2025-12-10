@@ -2,10 +2,12 @@
 from flask import request, jsonify
 from datetime import datetime
 from models import db, Station
+from auth import api_key_required
 from . import api_bp
 
 
 @api_bp.route('/station/register', methods=['POST'])
+@api_key_required(write=True)
 def register_station():
     """Register or update a station"""
     data = request.get_json()
@@ -45,6 +47,7 @@ def register_station():
 
 
 @api_bp.route('/stations/<int:station_id>/position', methods=['POST'])
+@api_key_required(write=True)
 def update_station_position(station_id):
     """Update station position on map"""
     data = request.get_json()
@@ -68,6 +71,7 @@ def update_station_position(station_id):
 
 
 @api_bp.route('/stations', methods=['GET'])
+@api_key_required(read=True)
 def get_stations():
     """Get all stations"""
     stations = Station.query.all()
@@ -77,6 +81,7 @@ def get_stations():
 
 
 @api_bp.route('/stations/<int:station_id>', methods=['GET'])
+@api_key_required(read=True)
 def get_station(station_id):
     """Get a specific station"""
     station = Station.query.get(station_id)
@@ -87,6 +92,7 @@ def get_station(station_id):
 
 
 @api_bp.route('/stations/<int:station_id>', methods=['PUT'])
+@api_key_required(write=True)
 def update_station(station_id):
     """Update station details"""
     station = Station.query.get(station_id)
@@ -111,6 +117,7 @@ def update_station(station_id):
 
 
 @api_bp.route('/stations/<int:station_id>', methods=['DELETE'])
+@api_key_required(delete_perm=True)
 def delete_station(station_id):
     """Delete a station"""
     station = Station.query.get(station_id)

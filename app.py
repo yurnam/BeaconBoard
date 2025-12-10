@@ -3,22 +3,31 @@ import os
 from flask import Flask
 from flask_socketio import SocketIO
 from flask_migrate import Migrate
+from flask_login import LoginManager
 from config import config
-from models import db
+from models import db, User
 from api import api_bp
 from routes import routes_bp
 from routes.settings import settings_bp
+from routes.auth import auth_bp
 from workers import TriangulationWorker, WebhookWorker, UnauthorizedDeviceMonitor
 from api.observations import new_devices_queue
 
 # Initialize extensions
 socketio = SocketIO()
 migrate = Migrate()
+login_manager = LoginManager()
 
 # Global workers
 triangulation_worker = None
 webhook_worker = None
 unauthorized_monitor = None
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Load user by ID for Flask-Login"""
+    return User.query.get(int(user_id))
 
 
 def create_app(config_name='default'):
@@ -32,6 +41,11 @@ def create_app(config_name='default'):
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message = 'Please log in to access this page.'
+    login_manager.login_message_category = 'warning'
+    
     socketio.init_app(app, 
                      cors_allowed_origins="*",
                      async_mode=app.config.get('SOCKETIO_ASYNC_MODE'))
@@ -40,10 +54,25 @@ def create_app(config_name='default'):
     app.register_blueprint(api_bp)
     app.register_blueprint(routes_bp)
     app.register_blueprint(settings_bp)
+    app.register_blueprint(auth_bp)
     
-    # Create database tables
+    # Create database tables and default admin user
     with app.app_context():
         db.create_all()
+        
+        # Create default admin user if no users exist
+        if User.query.count() == 0:
+            admin = User(
+                username='admin',
+                email='admin@beaconboard.local',
+                is_admin=True,
+                active=True
+            )
+            admin.set_password('admin')  # Default password - should be changed!
+            db.session.add(admin)
+            db.session.commit()
+            print("Created default admin user: username='admin', password='admin'")
+            print("IMPORTANT: Change the default password immediately!")
     
     # Start background workers
     global triangulation_worker, webhook_worker, unauthorized_monitor

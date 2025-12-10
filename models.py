@@ -1,6 +1,9 @@
 """Database models for BeaconBoard"""
 from datetime import datetime
+import secrets
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
 
@@ -154,3 +157,85 @@ class Webhook(db.Model):
             'event_type': self.event_type,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+
+class User(UserMixin, db.Model):
+    """User accounts for web interface authentication"""
+    __tablename__ = 'users'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_login = db.Column(db.DateTime)
+    
+    # Relationships
+    api_keys = db.relationship('APIKey', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def set_password(self, password):
+        """Hash and store password"""
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        """Verify password against hash"""
+        return check_password_hash(self.password_hash, password)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'is_admin': self.is_admin,
+            'active': self.active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None
+        }
+
+
+class APIKey(db.Model):
+    """API keys for programmatic access"""
+    __tablename__ = 'api_keys'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(128), nullable=False)
+    description = db.Column(db.String(255))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_used = db.Column(db.DateTime)
+    expires_at = db.Column(db.DateTime)  # Optional expiration
+    
+    # Permissions/scopes (could be extended for more granular control)
+    can_read = db.Column(db.Boolean, default=True)
+    can_write = db.Column(db.Boolean, default=True)
+    can_delete = db.Column(db.Boolean, default=False)
+    
+    @staticmethod
+    def generate_key():
+        """Generate a secure random API key"""
+        return secrets.token_urlsafe(48)  # 64 character URL-safe key
+    
+    def to_dict(self, include_key=False):
+        result = {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'user_id': self.user_id,
+            'active': self.active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_used': self.last_used.isoformat() if self.last_used else None,
+            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+            'can_read': self.can_read,
+            'can_write': self.can_write,
+            'can_delete': self.can_delete
+        }
+        if include_key:
+            result['key'] = self.key
+        else:
+            result['key_preview'] = self.key[:8] + '...' + self.key[-4:] if self.key else None
+        return result

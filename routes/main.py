@@ -2,10 +2,12 @@
 from flask import render_template
 from datetime import datetime, timedelta
 from models import db, Station, Device, Observation
+from auth import login_required_web
 from . import routes_bp
 
 
 @routes_bp.route('/')
+@login_required_web
 def index():
     """Dashboard page"""
     # Get statistics
