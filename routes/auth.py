@@ -68,12 +68,11 @@ def users_list():
 def create_user():
     """Create new user (admin only)"""
     username = request.form.get('username')
-    email = request.form.get('email')
     password = request.form.get('password')
     is_admin = request.form.get('is_admin') == 'on'
     
-    if not username or not email or not password:
-        flash('Username, email, and password are required.', 'error')
+    if not username or not password:
+        flash('Username and password are required.', 'error')
         return redirect(url_for('auth.users_list'))
     
     # Check if user already exists
@@ -81,14 +80,9 @@ def create_user():
         flash('Username already exists.', 'error')
         return redirect(url_for('auth.users_list'))
     
-    if User.query.filter_by(email=email).first():
-        flash('Email already exists.', 'error')
-        return redirect(url_for('auth.users_list'))
-    
     # Create user
     user = User(
         username=username,
-        email=email,
         is_admin=is_admin,
         active=True
     )
@@ -132,6 +126,25 @@ def toggle_user(user_id):
     status = 'activated' if user.active else 'deactivated'
     flash(f'User {user.username} {status} successfully.', 'success')
     return redirect(url_for('auth.users_list'))
+
+
+@auth_bp.route('/users/<int:user_id>/change-password', methods=['POST'])
+@admin_required
+def change_user_password(user_id):
+    """Change user password (admin only)"""
+    user = User.query.get_or_404(user_id)
+    new_password = request.form.get('new_password')
+    
+    if not new_password:
+        return jsonify({'success': False, 'error': 'Password is required'}), 400
+    
+    if len(new_password) < 6:
+        return jsonify({'success': False, 'error': 'Password must be at least 6 characters'}), 400
+    
+    user.set_password(new_password)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f'Password changed for {user.username}'})
 
 
 @auth_bp.route('/api-keys')

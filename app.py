@@ -64,7 +64,6 @@ def create_app(config_name='default'):
         if User.query.count() == 0:
             admin = User(
                 username='admin',
-                email='admin@beaconboard.local',
                 is_admin=True,
                 active=True
             )
