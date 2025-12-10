@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from models import db, Webhook
+from auth import login_required_web
 from datetime import datetime
 
 settings_bp = Blueprint('settings', __name__)

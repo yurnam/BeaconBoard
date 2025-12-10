@@ -218,7 +218,7 @@ class APIKey(db.Model):
     @staticmethod
     def generate_key():
         """Generate a secure random API key"""
-        return secrets.token_urlsafe(48)  # 64 character URL-safe key
+        return secrets.token_urlsafe(48)  # Approximately 64 character URL-safe key
     
     def to_dict(self, include_key=False):
         result = {
