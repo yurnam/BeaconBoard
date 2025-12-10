@@ -177,14 +177,15 @@ document.querySelectorAll('.inline-edit').forEach(input => {
         const value = this.value;
         
         try {
-            const response = await fetch(`/api/v1/devices/${deviceId}`, {
+            const response = await fetch(`/devices/${deviceId}`, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({[field]: value})
             });
             
             if (!response.ok) {
-                alert('Failed to update device');
+                const error = await response.text();
+                alert('Failed to update device: ' + error);
                 location.reload();
             }
         } catch (error) {
@@ -201,14 +202,15 @@ document.querySelectorAll('.toggle-authorized').forEach(checkbox => {
         const authorized = this.checked;
         
         try {
-            const response = await fetch(`/api/v1/devices/${deviceId}`, {
+            const response = await fetch(`/devices/${deviceId}`, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({authorized: authorized})
             });
             
             if (!response.ok) {
-                alert('Failed to update device');
+                const error = await response.text();
+                alert('Failed to update device: ' + error);
                 this.checked = !authorized;
             }
         } catch (error) {
@@ -226,14 +228,15 @@ document.querySelectorAll('.toggle-ignored').forEach(checkbox => {
         const ignored = this.checked;
         
         try {
-            const response = await fetch(`/api/v1/devices/${deviceId}`, {
+            const response = await fetch(`/devices/${deviceId}`, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ignored: ignored})
             });
             
             if (!response.ok) {
-                alert('Failed to update device');
+                const error = await response.text();
+                alert('Failed to update device: ' + error);
                 this.checked = !ignored;
             }
         } catch (error) {
@@ -250,14 +253,16 @@ async function deleteDevice(deviceId) {
     }
     
     try {
-        const response = await fetch(`/api/v1/devices/${deviceId}`, {
-            method: 'DELETE'
+        const response = await fetch(`/devices/${deviceId}`, {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'}
         });
         
         if (response.ok) {
             location.reload();
         } else {
-            alert('Failed to delete device');
+            const error = await response.text();
+            alert('Failed to delete device: ' + error);
         }
     } catch (error) {
         console.error('Error:', error);

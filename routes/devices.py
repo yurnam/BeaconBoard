@@ -1,7 +1,7 @@
 """Device management routes"""
-from flask import render_template, request
+from flask import render_template, request, jsonify
 from datetime import datetime, timedelta
-from models import Device
+from models import Device, db
 from auth import login_required_web
 from . import routes_bp
 
@@ -39,3 +39,36 @@ def devices_list():
                          show_ignored=show_ignored,
                          unnamed_only=unnamed_only,
                          inactive_timeout_minutes=int(inactive_timeout / 60))
+
+
+@routes_bp.route('/devices/<int:device_id>', methods=['PUT'])
+@login_required_web
+def update_device(device_id):
+    """Update device properties (web route with session auth)"""
+    device = Device.query.get_or_404(device_id)
+    data = request.json
+    
+    # Update allowed fields
+    if 'friendly_name' in data:
+        device.friendly_name = data['friendly_name'] or None
+    if 'icon' in data:
+        device.icon = data['icon']
+    if 'color' in data:
+        device.color = data['color']
+    if 'authorized' in data:
+        device.authorized = data['authorized']
+    if 'ignored' in data:
+        device.ignored = data['ignored']
+    
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@routes_bp.route('/devices/<int:device_id>', methods=['DELETE'])
+@login_required_web
+def delete_device(device_id):
+    """Delete device (web route with session auth)"""
+    device = Device.query.get_or_404(device_id)
+    db.session.delete(device)
+    db.session.commit()
+    return jsonify({'success': True})
