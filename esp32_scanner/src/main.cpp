@@ -222,6 +222,40 @@ bool uploadObservations() {
     return success;
 }
 
+// Check if server requests reboot
+bool checkRebootRequest() {
+    if (!WiFi.isConnected()) {
+        return false;
+    }
+    
+    HTTPClient http;
+    String url = String(SERVER_URL) + "/api/v1/station/check_reboot?station_uuid=" + String(STATION_UUID);
+    
+    http.begin(url);
+    http.addHeader("X-API-Key", API_KEY);
+    
+    int httpCode = http.GET();
+    
+    bool shouldReboot = false;
+    if (httpCode == 200) {
+        String response = http.getString();
+        
+        // Parse JSON response
+        DynamicJsonDocument doc(256);
+        DeserializationError error = deserializeJson(doc, response);
+        
+        if (!error && doc.containsKey("reboot_requested")) {
+            shouldReboot = doc["reboot_requested"].as<bool>();
+            if (shouldReboot) {
+                Serial.println("[REBOOT] Server requested reboot!");
+            }
+        }
+    }
+    
+    http.end();
+    return shouldReboot;
+}
+
 // Perform BLE scan
 void performScan() {
     Serial.println("[BLE] Starting scan...");
@@ -336,6 +370,14 @@ void loop() {
     
     // Perform BLE scan
     performScan();
+    
+    // Check if server requests reboot
+    if (checkRebootRequest()) {
+        Serial.println("[REBOOT] Rebooting in 3 seconds...");
+        blinkLED(5, 200);
+        delay(3000);
+        ESP.restart();
+    }
     
     // Check if it's time to upload or buffer is full
     unsigned long now = millis();

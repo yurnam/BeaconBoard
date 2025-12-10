@@ -3,7 +3,12 @@
 {% block title %}Stations - BeaconBoard{% endblock %}
 
 {% block content %}
-<h1>Stations Management</h1>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h1>Stations Management</h1>
+    <button class="btn btn-warning" onclick="rebootAllStations()" style="font-size: 16px;">
+        🔄 Reboot All Stations
+    </button>
+</div>
 
 <div class="section">
     <div class="table-responsive">
@@ -103,6 +108,30 @@ async function deleteStation(stationId) {
     } catch (error) {
         console.error('Error:', error);
         alert('Failed to delete station');
+    }
+}
+
+async function rebootAllStations() {
+    if (!confirm('Are you sure you want to reboot ALL stations?\n\nThis will restart all ESP32 and Raspberry Pi scanners.\nThey will be offline for about 30-60 seconds.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/stations/reboot-all', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(`✅ ${data.message}\n\nStations will reboot within the next minute.\n\nRebooting: ${data.stations.join(', ')}`);
+        } else {
+            alert(`❌ Failed to reboot stations: ${data.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Failed to send reboot command');
     }
 }
 </script>

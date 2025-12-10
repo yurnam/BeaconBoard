@@ -117,6 +117,24 @@ class BeaconBoardClient:
         except requests.RequestException as e:
             logger.error(f"Error uploading observations: {e}")
             return False
+    
+    def check_reboot_request(self, station_uuid: str) -> bool:
+        """Check if server requests this station to reboot"""
+        url = f"{self.server_url}/api/v1/station/check_reboot?station_uuid={station_uuid}"
+        
+        try:
+            response = self.session.get(url, timeout=5)
+            
+            if response.status_code == 200:
+                data = response.json()
+                return data.get('reboot_requested', False)
+            else:
+                logger.debug(f"Reboot check failed: {response.status_code}")
+                return False
+                
+        except requests.RequestException as e:
+            logger.debug(f"Error checking reboot status: {e}")
+            return False
 
 
 class WiFiScanner:
@@ -347,6 +365,14 @@ class Agent:
                 # Limit batch size
                 if len(observations) > max_batch_size:
                     observations = observations[:max_batch_size]
+                
+                # Check if server requests reboot
+                station_uuid = self.config.get('station_uuid')
+                if self.client.check_reboot_request(station_uuid):
+                    logger.warning("Server requested reboot! Rebooting in 5 seconds...")
+                    time.sleep(5)
+                    os.system('sudo reboot')
+                    break  # Exit loop
                 
                 # Upload to server
                 if observations:

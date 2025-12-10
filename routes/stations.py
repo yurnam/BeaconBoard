@@ -3,6 +3,8 @@ from flask import render_template, request, jsonify
 from models import db, Station
 from auth import login_required_web
 from . import routes_bp
+# Import the reboot_requests dict from API module
+from api.stations import reboot_requests
 
 
 @routes_bp.route('/stations')
@@ -37,3 +39,23 @@ def update_station_position(station_id):
         }), 200
     except (ValueError, TypeError) as e:
         return jsonify({'error': 'Invalid coordinate values'}), 400
+
+
+@routes_bp.route('/stations/reboot-all', methods=['POST'])
+@login_required_web
+def reboot_all_stations():
+    """Request all stations to reboot"""
+    stations = Station.query.filter_by(active=True).all()
+    
+    if not stations:
+        return jsonify({'error': 'No active stations found'}), 404
+    
+    # Set reboot flag for all active stations
+    for station in stations:
+        reboot_requests[station.uuid] = True
+    
+    return jsonify({
+        'status': 'ok',
+        'message': f'Reboot requested for {len(stations)} station(s)',
+        'stations': [s.uuid for s in stations]
+    }), 200

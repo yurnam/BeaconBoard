@@ -5,6 +5,9 @@ from models import db, Station
 from auth import api_key_required
 from . import api_bp
 
+# Track reboot requests per station
+reboot_requests = {}
+
 
 @api_bp.route('/station/register', methods=['POST'])
 @api_key_required(write=True)
@@ -128,3 +131,25 @@ def delete_station(station_id):
     db.session.commit()
     
     return jsonify({'status': 'ok'}), 200
+
+
+@api_bp.route('/station/check_reboot', methods=['GET'])
+@api_key_required(read=True)
+def check_reboot_status():
+    """Check if station should reboot (called by station)"""
+    # Get station UUID from request args or headers
+    station_uuid = request.args.get('station_uuid')
+    
+    if not station_uuid:
+        return jsonify({'error': 'station_uuid is required'}), 400
+    
+    # Check if there's a reboot request for this station
+    should_reboot = reboot_requests.get(station_uuid, False)
+    
+    if should_reboot:
+        # Clear the reboot request after acknowledging
+        reboot_requests[station_uuid] = False
+    
+    return jsonify({
+        'reboot_requested': should_reboot
+    }), 200
