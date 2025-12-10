@@ -7,6 +7,7 @@
 
 // BeaconBoard Server Configuration
 #define SERVER_URL "http://192.168.1.100:5000"  // Change to your server IP/hostname
+#define API_KEY "YOUR_API_KEY_HERE"             // Get from BeaconBoard web interface (🔑 API Keys page)
 
 // Station Configuration
 #define STATION_UUID "esp32_bedroom"            // Unique identifier for this scanner

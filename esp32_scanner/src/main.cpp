@@ -81,11 +81,12 @@ bool registerStation() {
     
     http.begin(url);
     http.addHeader("Content-Type", "application/json");
+    http.addHeader("X-API-Key", API_KEY);  // Add API key authentication
     http.setTimeout(HTTP_TIMEOUT);
     
     // Create JSON payload
     StaticJsonDocument<256> doc;
-    doc["uuid"] = STATION_UUID;
+    doc["station_uuid"] = STATION_UUID;  // Fixed: was 'uuid', should be 'station_uuid'
     doc["name"] = STATION_NAME;
     doc["description"] = STATION_DESCRIPTION;
     
@@ -177,6 +178,7 @@ bool uploadObservations() {
     
     http.begin(url);
     http.addHeader("Content-Type", "application/json");
+    http.addHeader("X-API-Key", API_KEY);  // Add API key authentication
     http.setTimeout(HTTP_TIMEOUT);
     
     // Create JSON payload

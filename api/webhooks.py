@@ -1,10 +1,12 @@
 """Webhook API endpoints"""
 from flask import request, jsonify
 from models import db, Webhook
+from auth import api_key_required
 from . import api_bp
 
 
 @api_bp.route('/webhooks', methods=['GET'])
+@api_key_required(read=True)
 def get_webhooks():
     """Get all webhooks"""
     webhooks = Webhook.query.all()
@@ -14,6 +16,7 @@ def get_webhooks():
 
 
 @api_bp.route('/webhooks', methods=['POST'])
+@api_key_required(write=True)
 def create_webhook():
     """Create a new webhook"""
     data = request.get_json()
@@ -39,6 +42,7 @@ def create_webhook():
 
 
 @api_bp.route('/webhooks/<int:webhook_id>', methods=['GET'])
+@api_key_required(read=True)
 def get_webhook(webhook_id):
     """Get a specific webhook"""
     webhook = Webhook.query.get(webhook_id)
@@ -49,6 +53,7 @@ def get_webhook(webhook_id):
 
 
 @api_bp.route('/webhooks/<int:webhook_id>', methods=['PUT'])
+@api_key_required(write=True)
 def update_webhook(webhook_id):
     """Update webhook details"""
     webhook = Webhook.query.get(webhook_id)
@@ -77,6 +82,7 @@ def update_webhook(webhook_id):
 
 
 @api_bp.route('/webhooks/<int:webhook_id>', methods=['DELETE'])
+@api_key_required(delete_perm=True)
 def delete_webhook(webhook_id):
     """Delete a webhook"""
     webhook = Webhook.query.get(webhook_id)
@@ -90,6 +96,7 @@ def delete_webhook(webhook_id):
 
 
 @api_bp.route('/webhooks/<int:webhook_id>/test', methods=['POST'])
+@api_key_required(write=True)
 def test_webhook(webhook_id):
     """Send a test event to the webhook"""
     webhook = Webhook.query.get(webhook_id)

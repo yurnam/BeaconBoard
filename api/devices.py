@@ -1,10 +1,12 @@
 """Device API endpoints"""
 from flask import request, jsonify
 from models import db, Device
+from auth import api_key_required
 from . import api_bp
 
 
 @api_bp.route('/devices', methods=['GET'])
+@api_key_required(read=True)
 def get_devices():
     """Get all devices with optional filters"""
     show_ignored = request.args.get('show_ignored', 'true').lower() == 'true'
@@ -36,6 +38,7 @@ def get_devices():
 
 
 @api_bp.route('/devices/<int:device_id>', methods=['GET'])
+@api_key_required(read=True)
 def get_device(device_id):
     """Get a specific device"""
     device = Device.query.get(device_id)
@@ -46,6 +49,7 @@ def get_device(device_id):
 
 
 @api_bp.route('/devices/<int:device_id>', methods=['PUT'])
+@api_key_required(write=True)
 def update_device(device_id):
     """Update device details"""
     device = Device.query.get(device_id)
@@ -74,6 +78,7 @@ def update_device(device_id):
 
 
 @api_bp.route('/devices/<int:device_id>', methods=['DELETE'])
+@api_key_required(delete_perm=True)
 def delete_device(device_id):
     """Delete a device"""
     device = Device.query.get(device_id)

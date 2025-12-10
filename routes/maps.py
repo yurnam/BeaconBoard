@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 import os
 from models import db, Map, Station, Device
+from auth import login_required_web
 from . import routes_bp
 
 
@@ -15,6 +16,7 @@ def allowed_file(filename):
 
 
 @routes_bp.route('/map')
+@login_required_web
 def map_view():
     """Live map view"""
     # Get active map
@@ -41,6 +43,7 @@ def map_view():
 
 
 @routes_bp.route('/map/settings')
+@login_required_web
 def map_settings():
     """Map settings page"""
     maps = Map.query.order_by(Map.created_at.desc()).all()
@@ -48,6 +51,7 @@ def map_settings():
 
 
 @routes_bp.route('/map/upload', methods=['POST'])
+@login_required_web
 def map_upload():
     """Upload a new map"""
     if 'file' not in request.files:
@@ -102,6 +106,7 @@ def map_upload():
 
 
 @routes_bp.route('/map/<int:map_id>/activate', methods=['POST'])
+@login_required_web
 def map_activate(map_id):
     """Activate a map"""
     # Deactivate all maps
@@ -120,6 +125,7 @@ def map_activate(map_id):
 
 
 @routes_bp.route('/map/<int:map_id>/delete', methods=['POST'])
+@login_required_web
 def map_delete(map_id):
     """Delete a map"""
     map_obj = Map.query.get(map_id)
@@ -152,6 +158,7 @@ def map_delete(map_id):
 
 
 @routes_bp.route('/uploads/maps/<filename>')
+@login_required_web
 def serve_map(filename):
     """Serve uploaded map images"""
     # Validate filename to prevent directory traversal

@@ -5,6 +5,7 @@ from datetime import datetime
 settings_bp = Blueprint('settings', __name__)
 
 @settings_bp.route('/settings')
+@login_required_web
 def settings_page():
     """Settings page with configuration options"""
     from config import Config
@@ -28,6 +29,7 @@ def settings_page():
 
 
 @settings_bp.route('/api/v1/config/update', methods=['POST'])
+@login_required_web
 def update_config():
     """Update configuration values"""
     try:
@@ -66,6 +68,7 @@ def update_config():
 
 
 @settings_bp.route('/api/v1/webhooks', methods=['GET'])
+@login_required_web
 def list_webhooks():
     """List all webhooks"""
     webhooks = Webhook.query.all()
@@ -75,6 +78,7 @@ def list_webhooks():
 
 
 @settings_bp.route('/api/v1/webhooks', methods=['POST'])
+@login_required_web
 def create_webhook():
     """Create a new webhook"""
     try:
@@ -99,6 +103,7 @@ def create_webhook():
 
 
 @settings_bp.route('/api/v1/webhooks/<int:webhook_id>', methods=['PUT'])
+@login_required_web
 def update_webhook(webhook_id):
     """Update a webhook"""
     try:
@@ -126,6 +131,7 @@ def update_webhook(webhook_id):
 
 
 @settings_bp.route('/api/v1/webhooks/<int:webhook_id>', methods=['DELETE'])
+@login_required_web
 def delete_webhook(webhook_id):
     """Delete a webhook"""
     try:
@@ -141,6 +147,7 @@ def delete_webhook(webhook_id):
 
 
 @settings_bp.route('/api/v1/webhooks/<int:webhook_id>/test', methods=['POST'])
+@login_required_web
 def test_webhook(webhook_id):
     """Send a test webhook"""
     try:

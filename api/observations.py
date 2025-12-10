@@ -2,6 +2,7 @@
 from flask import request, jsonify
 from datetime import datetime
 from models import db, Station, Device, Observation
+from auth import api_key_required
 from . import api_bp
 import queue
 
@@ -10,6 +11,7 @@ new_devices_queue = queue.Queue()
 
 
 @api_bp.route('/observations/batch', methods=['POST'])
+@api_key_required(write=True)
 def upload_observations():
     """Upload a batch of observations from a station"""
     data = request.get_json()
@@ -99,6 +101,7 @@ def upload_observations():
 
 
 @api_bp.route('/observations', methods=['GET'])
+@api_key_required(read=True)
 def get_observations():
     """Get recent observations (for debugging)"""
     limit = request.args.get('limit', 100, type=int)

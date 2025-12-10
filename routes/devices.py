@@ -2,10 +2,12 @@
 from flask import render_template, request
 from datetime import datetime, timedelta
 from models import Device
+from auth import login_required_web
 from . import routes_bp
 
 
 @routes_bp.route('/devices')
+@login_required_web
 def devices_list():
     """Devices management page"""
     show_ignored = request.args.get('show_ignored', 'false').lower() == 'true'

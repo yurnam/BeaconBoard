@@ -40,6 +40,7 @@ class Config:
             return {
                 'station_uuid': 'pi_station_1',
                 'server_url': 'http://localhost:5000',
+                'api_key': '',  # REQUIRED: Get from BeaconBoard web interface
                 'wifi_interface': 'wlan0',
                 'ble_interface': 'hci0',
                 'batch_interval_sec': 1,
@@ -57,10 +58,16 @@ class Config:
 class BeaconBoardClient:
     """Client for communicating with BeaconBoard server"""
     
-    def __init__(self, server_url: str):
+    def __init__(self, server_url: str, api_key: str = None):
         self.server_url = server_url.rstrip('/')
         self.session = requests.Session()
         self.session.headers.update({'Content-Type': 'application/json'})
+        
+        # Add API key to headers if provided
+        if api_key:
+            self.session.headers.update({'X-API-Key': api_key})
+        else:
+            logger.warning("No API key provided - API requests may fail!")
     
     def register_station(self, station_uuid: str, name: str, description: str = '') -> bool:
         """Register this station with the server"""
@@ -76,6 +83,9 @@ class BeaconBoardClient:
             if response.status_code == 200:
                 logger.info(f"Station registered: {station_uuid}")
                 return True
+            elif response.status_code == 401:
+                logger.error(f"Authentication failed - check API key")
+                return False
             else:
                 logger.error(f"Failed to register station: {response.status_code}")
                 return False
@@ -97,6 +107,9 @@ class BeaconBoardClient:
             if response.status_code == 200:
                 logger.debug(f"Uploaded {len(observations)} observations")
                 return True
+            elif response.status_code == 401:
+                logger.error(f"Authentication failed - check API key")
+                return False
             else:
                 logger.error(f"Failed to upload observations: {response.status_code}")
                 return False
@@ -269,7 +282,10 @@ class Agent:
     
     def __init__(self, config: Config):
         self.config = config
-        self.client = BeaconBoardClient(config.get('server_url'))
+        self.client = BeaconBoardClient(
+            config.get('server_url'),
+            api_key=config.get('api_key')  # Get API key from config
+        )
         
         # Get Bettercap connection details
         bettercap_url = config.get('bettercap_url', 'http://localhost:8081')

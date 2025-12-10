@@ -1,5 +1,6 @@
 """API endpoints for controlling simulation mode"""
 from flask import jsonify, request, current_app
+from auth import api_key_required
 from . import api_bp
 from simulator import get_simulation_worker
 import logging
@@ -8,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 @api_bp.route('/simulation/status', methods=['GET'])
+@api_key_required(read=True)
 def get_simulation_status():
     """Get current simulation status"""
     worker = get_simulation_worker()
@@ -18,6 +20,7 @@ def get_simulation_status():
 
 
 @api_bp.route('/simulation/start', methods=['POST'])
+@api_key_required(write=True)
 def start_simulation():
     """Start simulation mode"""
     try:
@@ -41,6 +44,7 @@ def start_simulation():
 
 
 @api_bp.route('/simulation/stop', methods=['POST'])
+@api_key_required(write=True)
 def stop_simulation():
     """Stop simulation mode"""
     try:
@@ -58,6 +62,7 @@ def stop_simulation():
 
 
 @api_bp.route('/simulation/info', methods=['GET'])
+@api_key_required(read=True)
 def get_simulation_info():
     """Get information about simulation configuration"""
     worker = get_simulation_worker()
