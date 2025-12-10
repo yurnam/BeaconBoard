@@ -188,7 +188,7 @@ bool uploadObservations() {
     
     for (const auto& obs : observations) {
         JsonObject obsObj = obsArray.createNestedObject();
-        obsObj["mac"] = obs.mac;
+        obsObj["device_mac"] = obs.mac;  // Fixed: API expects 'device_mac' not 'mac'
         obsObj["rssi"] = obs.rssi;
         obsObj["protocol"] = "ble";
         // Convert timestamp to ISO format
