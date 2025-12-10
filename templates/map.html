@@ -11,12 +11,19 @@
         margin: 0 auto;
         border: 2px solid #ccc;
         background: #f5f5f5;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
     }
     
     .map-image {
         width: 100%;
         height: auto;
         display: block;
+        pointer-events: none;
+        user-select: none;
+        -webkit-user-drag: none;
     }
     
     .marker {
@@ -323,8 +330,15 @@ function toggleEditMode() {
 function startDrag(e) {
     if (!editMode) return;
     
+    // Prevent default behaviors (text selection, image drag)
+    e.preventDefault();
+    e.stopPropagation();
+    
     draggedStation = e.currentTarget;
+    
     const onMouseMove = (e) => {
+        e.preventDefault(); // Prevent default drag behavior
+        
         const container = document.getElementById('map-container');
         const rect = container.getBoundingClientRect();
         
@@ -336,6 +350,8 @@ function startDrag(e) {
     };
     
     const onMouseUp = async (e) => {
+        e.preventDefault();
+        
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
         
@@ -348,11 +364,14 @@ function startDrag(e) {
             
             const stationId = draggedStation.dataset.stationId;
             
-            // Save to server
+            // Save to server (using web route with session auth, not API route)
             try {
-                const response = await fetch(`/api/v1/stations/${stationId}/position`, {
+                const response = await fetch(`/stations/${stationId}/position`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'same-origin',  // Include cookies for session auth
                     body: JSON.stringify({
                         x_norm: Math.max(0, Math.min(1, x_norm)),
                         y_norm: Math.max(0, Math.min(1, y_norm))
@@ -360,6 +379,9 @@ function startDrag(e) {
                 });
                 
                 if (response.ok) {
+                    // Remove unpositioned class if it was set
+                    draggedStation.classList.remove('unpositioned');
+                    
                     // Visual feedback on successful save
                     draggedStation.style.borderColor = '#27ae60';
                     setTimeout(() => {
@@ -370,13 +392,15 @@ function startDrag(e) {
                         }
                     }, 500);
                 } else {
-                    alert('Failed to save station position');
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Failed to save position:', response.status, errorData);
+                    alert('Failed to save station position: ' + (errorData.error || 'Unknown error'));
                     // Revert position on error
                     renderStations();
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to save station position');
+                alert('Failed to save station position: ' + error.message);
                 // Revert position on error
                 renderStations();
             }
