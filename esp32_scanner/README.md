@@ -232,37 +232,68 @@ After deployment:
 
 ### Flash Size Error / Boot Loop
 
-If you see "Detected size(4096k) smaller than the size in the binary image header(8192k)" or "assert failed: do_core_init":
+If you see errors like:
+- "Detected size(4096k) smaller than the size in the binary image header(8192k)"
+- "assert failed: do_core_init"
+- "E (243) esp_core_dump_flash: Core dump flash config is corrupted!"
+- Device keeps rebooting continuously
 
-**This is a flash partition table mismatch.** Your ESP32 has 4MB flash, but old cached builds used 8MB.
+**Root Cause:** Flash configuration mismatch. Your ESP32 has 4MB flash but old partition tables or incompatible flash modes are cached.
 
-**Solution - Full Flash Erase (REQUIRED):**
+**Solution - CRITICAL 3-STEP FIX:**
 
 ```bash
-# Method 1: Use esptool to erase entire flash
+# Step 1: ERASE ENTIRE FLASH (clears old partition table)
 pio run --target erase
 
-# Method 2: Manual erase with esptool
+# Step 2: Clean all cached builds
+pio run --target clean
+
+# Step 3: Upload fresh build
+pio run --target upload
+```
+
+**If Step 1 fails or device still reboots:**
+
+```bash
+# Manual flash erase with esptool (more reliable)
 esptool.py --chip esp32s3 --port /dev/ttyUSB0 erase_flash
 
-# Then clean build and upload
-pio run --target clean
+# Wait for "Chip erase completed successfully"
+# Then upload
 pio run --target upload
 ```
 
-**If still failing:**
+**If STILL failing (rare):**
+
 ```bash
-# Delete all cached builds
+# Nuclear option: Delete ALL cached files
 rm -rf .pio/
 
-# Rebuild from scratch
+# Erase flash manually
+esptool.py --chip esp32s3 --port /dev/ttyUSB0 erase_flash
+
+# Rebuild and upload from scratch
 pio run --target upload
 ```
+
+**Why This Happens:**
+- ESP32 caches partition tables in flash memory
+- Previous uploads may have used 8MB (default) instead of 4MB
+- Changing platformio.ini alone doesn't clear cached data
+- **Flash must be erased** to clear old partition tables
+- DIO flash mode (now set) is more compatible than QIO mode
 
 **Platform-specific port names:**
 - Linux/Mac: `/dev/ttyUSB0` or `/dev/ttyACM0`
 - Windows: `COM3`, `COM4`, etc.
 - Check with: `pio device list`
+
+**Flash Mode Notes:**
+- This project uses **DIO mode** (more compatible)
+- QIO mode may cause boot issues on some flash chips
+- DIO works with wider variety of ESP32-S3 modules
+- Flash frequency set to 80MHz for stability
 
 ### No BLE Devices Detected
 
