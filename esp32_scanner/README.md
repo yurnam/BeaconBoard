@@ -65,6 +65,10 @@ Edit `include/config.h` and set your parameters:
 # Navigate to this directory
 cd esp32_scanner
 
+# IMPORTANT: If you previously uploaded code, erase flash first!
+# This clears old partition tables that may cause boot loops
+pio run --target erase
+
 # Build the project
 pio run
 
@@ -74,6 +78,8 @@ pio run --target upload
 # Monitor serial output
 pio device monitor
 ```
+
+**Note:** The erase step is critical if you've uploaded code before. It clears the old 8MB partition table that causes the "flash size mismatch" error.
 
 ### 4. Verify Operation
 
@@ -226,15 +232,37 @@ After deployment:
 
 ### Flash Size Error / Boot Loop
 
-If you see "Detected size(4096k) smaller than the size in the binary image header(8192k)":
+If you see "Detected size(4096k) smaller than the size in the binary image header(8192k)" or "assert failed: do_core_init":
 
-1. Your ESP32 has 4MB flash but code was compiled for 8MB
-2. This is now fixed in `platformio.ini` with `board_build.flash_size = 4MB`
-3. Clean and rebuild:
-   ```bash
-   pio run --target clean
-   pio run --target upload
-   ```
+**This is a flash partition table mismatch.** Your ESP32 has 4MB flash, but old cached builds used 8MB.
+
+**Solution - Full Flash Erase (REQUIRED):**
+
+```bash
+# Method 1: Use esptool to erase entire flash
+pio run --target erase
+
+# Method 2: Manual erase with esptool
+esptool.py --chip esp32s3 --port /dev/ttyUSB0 erase_flash
+
+# Then clean build and upload
+pio run --target clean
+pio run --target upload
+```
+
+**If still failing:**
+```bash
+# Delete all cached builds
+rm -rf .pio/
+
+# Rebuild from scratch
+pio run --target upload
+```
+
+**Platform-specific port names:**
+- Linux/Mac: `/dev/ttyUSB0` or `/dev/ttyACM0`
+- Windows: `COM3`, `COM4`, etc.
+- Check with: `pio device list`
 
 ### No BLE Devices Detected
 
