@@ -54,10 +54,16 @@ def login_required_web(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
+            # For AJAX requests, return JSON error instead of redirect
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
+                return jsonify({'error': 'Authentication required. Please log in.'}), 401
             flash('Please log in to access this page.', 'warning')
             return redirect(url_for('auth.login', next=request.url))
         
         if not current_user.active:
+            # For AJAX requests, return JSON error instead of redirect
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
+                return jsonify({'error': 'Your account is inactive.'}), 403
             flash('Your account is inactive. Please contact an administrator.', 'error')
             return redirect(url_for('auth.logout'))
         
