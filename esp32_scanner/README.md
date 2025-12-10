@@ -20,6 +20,7 @@ This directory contains the PlatformIO project for ESP32-S3 BLE scanning station
   - ESP32-S3-WROOM
   - ESP32-S3-MINI
   - Any other ESP32-S3 board
+  - **Note**: Code is configured for 4MB flash (compatible with most modules)
 - **USB-C cable** for programming and power
 - **WiFi network** with internet/LAN access to BeaconBoard server
 - **Optional**: External BLE antenna for extended range
@@ -221,6 +222,19 @@ After deployment:
 3. Ensure firewall allows port 5000 (or your server port)
 4. Try accessing server URL in browser from same network
 5. Check serial monitor for HTTP error codes
+6. **Verify `API_KEY` is set** in config.h (get from BeaconBoard web UI → 🔑 API Keys)
+
+### Flash Size Error / Boot Loop
+
+If you see "Detected size(4096k) smaller than the size in the binary image header(8192k)":
+
+1. Your ESP32 has 4MB flash but code was compiled for 8MB
+2. This is now fixed in `platformio.ini` with `board_build.flash_size = 4MB`
+3. Clean and rebuild:
+   ```bash
+   pio run --target clean
+   pio run --target upload
+   ```
 
 ### No BLE Devices Detected
 
