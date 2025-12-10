@@ -73,14 +73,15 @@ document.querySelectorAll('.inline-edit').forEach(input => {
         const value = this.value;
         
         try {
-            const response = await fetch(`/api/v1/stations/${stationId}`, {
+            const response = await fetch(`/stations/${stationId}`, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({[field]: value})
             });
             
             if (!response.ok) {
-                alert('Failed to update station');
+                const data = await response.json();
+                alert(`Failed to update station: ${data.error || 'Unknown error'}`);
                 location.reload();
             }
         } catch (error) {
@@ -96,14 +97,16 @@ async function deleteStation(stationId) {
     }
     
     try {
-        const response = await fetch(`/api/v1/stations/${stationId}`, {
-            method: 'DELETE'
+        const response = await fetch(`/stations/${stationId}`, {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'}
         });
         
         if (response.ok) {
             location.reload();
         } else {
-            alert('Failed to delete station');
+            const data = await response.json();
+            alert(`Failed to delete station: ${data.error || 'Unknown error'}`);
         }
     } catch (error) {
         console.error('Error:', error);
