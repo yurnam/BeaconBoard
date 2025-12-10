@@ -48,6 +48,11 @@ class Map(db.Model):
     image_filename = db.Column(db.String(255), nullable=False)
     width_px = db.Column(db.Integer)
     height_px = db.Column(db.Integer)
+    
+    # Real-world dimensions for triangulation accuracy
+    width_meters = db.Column(db.Float, default=20.0)  # Default 20m width
+    height_meters = db.Column(db.Float, default=20.0)  # Default 20m height
+    
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -58,6 +63,8 @@ class Map(db.Model):
             'image_filename': self.image_filename,
             'width_px': self.width_px,
             'height_px': self.height_px,
+            'width_meters': self.width_meters,
+            'height_meters': self.height_meters,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

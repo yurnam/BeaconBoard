@@ -98,7 +98,11 @@ class TriangulationWorker:
                 if device.last_rssi != overall_avg_rssi:
                     device.last_rssi = overall_avg_rssi
             
-            # Get station positions
+            # Get station positions and map scale
+            from models import Map
+            active_map = Map.query.filter_by(is_active=True).first()
+            map_scale = active_map.width_meters if active_map and active_map.width_meters else 20.0
+            
             station_positions = []
             distances = []
             
@@ -108,7 +112,7 @@ class TriangulationWorker:
                     station_positions.append((station.x_norm, station.y_norm))
                     # Convert RSSI to distance and normalize
                     distance_meters = rssi_to_distance(int(avg_rssi))
-                    distance_norm = normalize_distance(distance_meters, map_scale=20.0)
+                    distance_norm = normalize_distance(distance_meters, map_scale=map_scale)
                     distances.append(distance_norm)
             
             # Need at least min_stations for triangulation

@@ -105,6 +105,39 @@ def map_upload():
     return redirect(url_for('routes.map_settings'))
 
 
+@routes_bp.route('/map/<int:map_id>/dimensions', methods=['POST'])
+@login_required_web
+def map_update_dimensions(map_id):
+    """Update map physical dimensions"""
+    map_obj = Map.query.get(map_id)
+    if not map_obj:
+        flash('Map not found', 'error')
+        return redirect(url_for('routes.map_settings'))
+    
+    try:
+        width_meters = float(request.form.get('width_meters', 20.0))
+        height_meters = float(request.form.get('height_meters', 20.0))
+        
+        # Validate dimensions (must be positive and reasonable)
+        if width_meters <= 0 or width_meters > 1000:
+            flash('Width must be between 0 and 1000 meters', 'error')
+            return redirect(url_for('routes.map_settings'))
+        
+        if height_meters <= 0 or height_meters > 1000:
+            flash('Height must be between 0 and 1000 meters', 'error')
+            return redirect(url_for('routes.map_settings'))
+        
+        map_obj.width_meters = width_meters
+        map_obj.height_meters = height_meters
+        db.session.commit()
+        
+        flash('Map dimensions updated successfully', 'success')
+    except ValueError:
+        flash('Invalid dimension values', 'error')
+    
+    return redirect(url_for('routes.map_settings'))
+
+
 @routes_bp.route('/map/<int:map_id>/activate', methods=['POST'])
 @login_required_web
 def map_activate(map_id):
