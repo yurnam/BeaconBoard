@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - BeaconBoard{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_stations }}</div>
+        <div class="stat-label">Total Stations</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ active_stations }}</div>
+        <div class="stat-label">Active Stations</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ total_devices }}</div>
+        <div class="stat-label">Total Devices</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ ignored_devices }}</div>
+        <div class="stat-label">Ignored Devices</div>
+    </div>
+</div>
+
+<div class="section">
+    <h2>Recently Seen Devices</h2>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>MAC Address</th>
+                    <th>Name</th>
+                    <th>Protocol</th>
+                    <th>Last Seen</th>
+                    <th>Position</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for device in recent_devices %}
+                <tr>
+                    <td><code>{{ device.mac }}</code></td>
+                    <td>
+                        {% if device.friendly_name %}
+                            <span class="device-icon">{{ device.icon or '❓' }}</span>
+                            {{ device.friendly_name }}
+                        {% else %}
+                            <em>Unknown</em>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge badge-{{ device.protocol }}">{{ device.protocol }}</span></td>
+                    <td>{{ device.last_seen.strftime('%Y-%m-%d %H:%M:%S') if device.last_seen else 'Never' }}</td>
+                    <td>
+                        {% if device.last_x_norm and device.last_y_norm %}
+                            ✓ Tracked
+                        {% else %}
+                            - Not positioned
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center">No recent devices</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

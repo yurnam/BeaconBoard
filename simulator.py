@@ -1,0 +1,232 @@
+"""Simulation mode for testing with mock stations and devices"""
+import random
+import time
+import threading
+import requests
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class SimulationWorker:
+    """Background worker that generates mock observation data from test stations"""
+    
+    # RSSI calculation constants
+    TX_POWER = -30  # Transmit power in dBm
+    PATH_LOSS_EXPONENT = 2  # Path loss exponent (n)
+    DISTANCE_SCALE = 100  # Scale normalized distance (0-1) to meters
+    RSSI_NOISE = 5  # Random noise range in dB
+    
+    # Movement simulation constants
+    VELOCITY_JITTER = 0.002  # Random velocity change per update
+    MAX_VELOCITY = 0.02  # Maximum velocity in normalized units
+    
+    # Test station configurations
+    TEST_STATIONS = [
+        {
+            'uuid': 'sim_station_1',
+            'name': 'Test Station 1',
+            'description': 'Simulated station in bedroom'
+        },
+        {
+            'uuid': 'sim_station_2',
+            'name': 'Test Station 2',
+            'description': 'Simulated station in kitchen'
+        },
+        {
+            'uuid': 'sim_station_3',
+            'name': 'Test Station 3',
+            'description': 'Simulated station in living room'
+        }
+    ]
+    
+    # Mock devices that move around
+    MOCK_DEVICES = [
+        {'mac': 'SIM:AA:BB:CC:DD:01', 'protocol': 'wifi', 'x': 0.3, 'y': 0.3, 'vx': 0.01, 'vy': 0.01},
+        {'mac': 'SIM:AA:BB:CC:DD:02', 'protocol': 'wifi', 'x': 0.7, 'y': 0.3, 'vx': -0.01, 'vy': 0.01},
+        {'mac': 'SIM:11:22:33:44:01', 'protocol': 'ble', 'x': 0.5, 'y': 0.5, 'vx': 0.01, 'vy': -0.01},
+        {'mac': 'SIM:11:22:33:44:02', 'protocol': 'ble', 'x': 0.4, 'y': 0.6, 'vx': -0.01, 'vy': -0.01},
+    ]
+    
+    def __init__(self, app, interval_seconds=2):
+        """Initialize the simulation worker
+        
+        Args:
+            app: Flask application instance
+            interval_seconds: How often to generate observations (default 2 seconds)
+        """
+        self.app = app
+        self.interval = interval_seconds
+        self.enabled = False
+        self.thread = None
+        self.stop_event = threading.Event()
+        self.server_url = None
+        
+        # Device positions for simulation
+        self.device_positions = [d.copy() for d in self.MOCK_DEVICES]
+        
+    def start(self, server_url='http://127.0.0.1:5000'):
+        """Start the simulation worker"""
+        if self.thread and self.thread.is_alive():
+            logger.warning("Simulation worker already running")
+            return
+            
+        self.server_url = server_url
+        self.stop_event.clear()
+        self.enabled = True
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
+        logger.info("Simulation worker started")
+        
+    def stop(self):
+        """Stop the simulation worker"""
+        self.enabled = False
+        self.stop_event.set()
+        if self.thread:
+            self.thread.join(timeout=5)
+        logger.info("Simulation worker stopped")
+        
+    def _run(self):
+        """Main worker loop"""
+        # First, register all test stations
+        self._register_stations()
+        
+        # Then generate observations in a loop
+        while not self.stop_event.is_set():
+            try:
+                if self.enabled:
+                    self._generate_observations()
+                time.sleep(self.interval)
+            except Exception as e:
+                logger.error(f"Error in simulation worker: {e}")
+                time.sleep(self.interval)
+                
+    def _register_stations(self):
+        """Register all test stations with the server"""
+        for station in self.TEST_STATIONS:
+            try:
+                response = requests.post(
+                    f"{self.server_url}/api/v1/station/register",
+                    json={
+                        'station_uuid': station['uuid'],
+                        'name': station['name'],
+                        'description': station['description']
+                    },
+                    timeout=5
+                )
+                if response.status_code == 200:
+                    logger.info(f"Registered test station: {station['name']}")
+                else:
+                    logger.error(f"Failed to register station {station['name']}: {response.status_code}")
+            except Exception as e:
+                logger.error(f"Error registering station {station['name']}: {e}")
+                
+    def _generate_observations(self):
+        """Generate mock observations from all stations"""
+        # Update device positions (simulate movement)
+        self._update_device_positions()
+        
+        # Fetch current station positions from API
+        try:
+            response = requests.get(f"{self.server_url}/api/v1/stations", timeout=5)
+            if response.status_code != 200:
+                logger.error(f"Failed to fetch stations: {response.status_code}")
+                return
+            
+            stations_response = response.json()
+            stations_data = stations_response.get('stations', [])
+        except Exception as e:
+            logger.error(f"Error fetching stations: {e}")
+            return
+        
+        # Generate observations from each positioned station
+        for station_data in stations_data:
+            # Only generate observations from simulation stations that have been positioned
+            if not station_data['uuid'].startswith('sim_station_'):
+                continue
+                
+            if station_data['x_norm'] is None or station_data['y_norm'] is None:
+                logger.debug(f"Skipping unpositioned station: {station_data['name']}")
+                continue
+            
+            observations = []
+            
+            for device in self.device_positions:
+                # Calculate distance from station to device
+                dx = device['x'] - station_data['x_norm']
+                dy = device['y'] - station_data['y_norm']
+                distance = (dx**2 + dy**2) ** 0.5
+                
+                # Convert distance to RSSI (inverse of triangulation)
+                # Using path loss model: RSSI = TxPower - 10*n*log10(distance)
+                if distance < 0.01:
+                    distance = 0.01  # Avoid log(0)
+                    
+                rssi = self.TX_POWER - (10 * self.PATH_LOSS_EXPONENT * (distance * self.DISTANCE_SCALE) ** 0.5)
+                rssi = int(rssi + random.uniform(-self.RSSI_NOISE, self.RSSI_NOISE))  # Add noise
+                
+                # Clamp RSSI to realistic range
+                rssi = max(-100, min(-20, rssi))
+                
+                # Add observation
+                observations.append({
+                    'device_mac': device['mac'],
+                    'timestamp': int(time.time()),
+                    'rssi': rssi,
+                    'protocol': device['protocol'],
+                    'channel': random.randint(1, 11) if device['protocol'] == 'wifi' else None,
+                    'ssid': 'SimulatedWiFi' if device['protocol'] == 'wifi' else None
+                })
+            
+            # Send batch to server
+            try:
+                response = requests.post(
+                    f"{self.server_url}/api/v1/observations/batch",
+                    json={
+                        'station_uuid': station_data['uuid'],
+                        'observations': observations
+                    },
+                    timeout=5
+                )
+                if response.status_code == 200:
+                    logger.debug(f"Sent {len(observations)} observations from {station_data['name']}")
+                else:
+                    logger.error(f"Failed to send observations from {station_data['name']}: {response.status_code}")
+            except Exception as e:
+                logger.error(f"Error sending observations from {station_data['name']}: {e}")
+                
+    def _update_device_positions(self):
+        """Update mock device positions to simulate movement"""
+        for device in self.device_positions:
+            # Update position
+            device['x'] += device['vx']
+            device['y'] += device['vy']
+            
+            # Bounce off walls (0-1 normalized space)
+            if device['x'] <= 0 or device['x'] >= 1:
+                device['vx'] *= -1
+                device['x'] = max(0, min(1, device['x']))
+            if device['y'] <= 0 or device['y'] >= 1:
+                device['vy'] *= -1
+                device['y'] = max(0, min(1, device['y']))
+            
+            # Add random jitter to velocity
+            device['vx'] += random.uniform(-self.VELOCITY_JITTER, self.VELOCITY_JITTER)
+            device['vy'] += random.uniform(-self.VELOCITY_JITTER, self.VELOCITY_JITTER)
+            
+            # Clamp velocity
+            device['vx'] = max(-self.MAX_VELOCITY, min(self.MAX_VELOCITY, device['vx']))
+            device['vy'] = max(-self.MAX_VELOCITY, min(self.MAX_VELOCITY, device['vy']))
+
+
+# Global simulation worker instance
+simulation_worker = None
+
+
+def get_simulation_worker(app=None):
+    """Get or create the global simulation worker"""
+    global simulation_worker
+    if simulation_worker is None and app is not None:
+        simulation_worker = SimulationWorker(app)
+    return simulation_worker

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Stations - BeaconBoard{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h1>Stations Management</h1>
+    <button class="btn btn-warning" onclick="rebootAllStations()" style="font-size: 16px;">
+        🔄 Reboot All Stations
+    </button>
+</div>
+
+<div class="section">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>UUID</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Position</th>
+                    <th>Status</th>
+                    <th>Last Seen</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for station in stations %}
+                <tr>
+                    <td><code>{{ station.uuid }}</code></td>
+                    <td>
+                        <input type="text" class="inline-edit" value="{{ station.name }}" 
+                               data-station-id="{{ station.id }}" data-field="name">
+                    </td>
+                    <td>
+                        <input type="text" class="inline-edit" value="{{ station.description or '' }}" 
+                               data-station-id="{{ station.id }}" data-field="description">
+                    </td>
+                    <td>
+                        {% if station.x_norm and station.y_norm %}
+                            ({{ "%.2f"|format(station.x_norm) }}, {{ "%.2f"|format(station.y_norm) }})
+                        {% else %}
+                            <em>Not set</em>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-{% if station.active %}success{% else %}danger{% endif %}">
+                            {{ 'Active' if station.active else 'Inactive' }}
+                        </span>
+                    </td>
+                    <td>{{ station.last_seen.strftime('%Y-%m-%d %H:%M:%S') if station.last_seen else 'Never' }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteStation({{ station.id }})">Delete</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center">No stations registered yet</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.inline-edit').forEach(input => {
+    input.addEventListener('blur', async function() {
+        const stationId = this.dataset.stationId;
+        const field = this.dataset.field;
+        const value = this.value;
+        
+        try {
+            const response = await fetch(`/stations/${stationId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({[field]: value})
+            });
+            
+            if (!response.ok) {
+                const data = await response.json();
+                alert(`Failed to update station: ${data.error || 'Unknown error'}`);
+                location.reload();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to update station');
+        }
+    });
+});
+
+async function deleteStation(stationId) {
+    if (!confirm('Are you sure you want to delete this station?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/stations/${stationId}`, {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            const data = await response.json();
+            alert(`Failed to delete station: ${data.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to delete station');
+    }
+}
+
+async function rebootAllStations() {
+    if (!confirm('Are you sure you want to reboot ALL stations?\n\nThis will restart all ESP32 and Raspberry Pi scanners.\nThey will be offline for about 30-60 seconds.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/stations/reboot-all', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(`✅ ${data.message}\n\nStations will reboot within the next minute.\n\nRebooting: ${data.stations.join(', ')}`);
+        } else {
+            alert(`❌ Failed to reboot stations: ${data.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Failed to send reboot command');
+    }
+}
+</script>
+{% endblock %}

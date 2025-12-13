@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Map Settings - BeaconBoard{% endblock %}
+
+{% block content %}
+<h1>Map Settings</h1>
+
+<div class="section">
+    <h2>Upload New Map</h2>
+    <form action="{{ url_for('routes.map_upload') }}" method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="name">Map Name:</label>
+            <input type="text" id="name" name="name" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="file">Map Image:</label>
+            <input type="file" id="file" name="file" class="form-control" accept="image/*" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Upload Map</button>
+    </form>
+</div>
+
+<div class="section">
+    <h2>Existing Maps</h2>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Dimensions (px)</th>
+                    <th>Real-World Size</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for map in maps %}
+                <tr>
+                    <td>{{ map.name }}</td>
+                    <td>{{ map.width_px }} × {{ map.height_px }} px</td>
+                    <td>
+                        <form action="{{ url_for('routes.map_update_dimensions', map_id=map.id) }}" 
+                              method="POST" style="display: inline-flex; align-items: center; gap: 5px;">
+                            <input type="number" name="width_meters" step="0.1" min="0.1" max="1000"
+                                   value="{{ map.width_meters or 20.0 }}" 
+                                   style="width: 60px; padding: 2px 4px; font-size: 12px;">
+                            <span style="font-size: 11px;">m ×</span>
+                            <input type="number" name="height_meters" step="0.1" min="0.1" max="1000"
+                                   value="{{ map.height_meters or 20.0 }}" 
+                                   style="width: 60px; padding: 2px 4px; font-size: 12px;">
+                            <span style="font-size: 11px;">m</span>
+                            <button type="submit" class="btn btn-xs btn-success" 
+                                    style="padding: 2px 8px; font-size: 11px;">✓ Update</button>
+                        </form>
+                        {% if map.is_active %}
+                        <div style="margin-top: 4px; font-size: 11px; color: #2c3e50;">
+                            <strong>📏 Currently used for triangulation</strong>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-{% if map.is_active %}success{% else %}secondary{% endif %}">
+                            {{ 'Active' if map.is_active else 'Inactive' }}
+                        </span>
+                    </td>
+                    <td>{{ map.created_at.strftime('%Y-%m-%d %H:%M') if map.created_at else 'N/A' }}</td>
+                    <td>
+                        {% if not map.is_active %}
+                        <form action="{{ url_for('routes.map_activate', map_id=map.id) }}" method="POST" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-primary">Activate</button>
+                        </form>
+                        {% endif %}
+                        <a href="{{ url_for('routes.serve_map', filename=map.image_filename) }}" 
+                           target="_blank" class="btn btn-sm btn-secondary">Preview</a>
+                        {% if not map.is_active %}
+                        <form action="{{ url_for('routes.map_delete', map_id=map.id) }}" method="POST" 
+                              style="display: inline;" 
+                              onsubmit="return confirm('Are you sure you want to delete this map?');">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                        {% else %}
+                        <button class="btn btn-sm btn-danger" disabled title="Cannot delete active map">Delete</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center">No maps uploaded yet</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="alert alert-info" style="margin-top: 20px;">
+        <strong>📏 Setting Map Dimensions:</strong>
+        <p>Enter the real-world width and height of your map in meters for accurate triangulation.</p>
+        <ul>
+            <li><strong>How to measure:</strong> Measure the distance between the furthest points on your floor plan</li>
+            <li><strong>Example:</strong> If your house is 15 meters wide and 12 meters deep, enter: 15.0m × 12.0m</li>
+            <li><strong>Why it matters:</strong> The system uses these dimensions to convert RSSI distances to map coordinates</li>
+            <li><strong>Tip:</strong> For best results, position stations at known distances and adjust dimensions if devices appear in wrong locations</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

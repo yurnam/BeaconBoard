@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Simulation Mode - BeaconBoard{% endblock %}
+
+{% block content %}
+<h2>🧪 Simulation Mode</h2>
+
+<div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 15px; margin-bottom: 20px;">
+    <h3 style="margin-top: 0; color: #856404;">ℹ️ About Simulation Mode</h3>
+    <p style="margin-bottom: 0; color: #856404;">
+        Simulation mode creates 3 virtual test stations and 4 moving mock devices to test the system without physical hardware.
+        The test stations register automatically but need to be positioned manually on the map (just like real stations).
+        Once positioned, they send realistic mock RSSI observations every 2 seconds. Enable this mode to test triangulation, 
+        map visualization, and live tracking features before deploying real Raspberry Pi stations.
+    </p>
+</div>
+
+<div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+    <h3>Simulation Control</h3>
+    
+    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+        <div>
+            <strong>Status:</strong>
+            <span id="sim-status" style="padding: 5px 10px; border-radius: 4px; font-weight: bold;">Unknown</span>
+        </div>
+        <div>
+            <button id="start-btn" class="btn btn-success" onclick="startSimulation()">▶️ Start Simulation</button>
+            <button id="stop-btn" class="btn btn-danger" onclick="stopSimulation()" style="display: none;">⏹️ Stop Simulation</button>
+        </div>
+    </div>
+    
+    <div id="sim-info" style="display: none; background: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 20px;">
+        <h4 style="margin-top: 0;">Active Simulation Components</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <h5>Test Stations (3)</h5>
+                <ul id="station-list"></ul>
+            </div>
+            <div>
+                <h5>Mock Devices (4)</h5>
+                <ul id="device-list"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="background: white; padding: 20px; border-radius: 8px;">
+    <h3>How to Use</h3>
+    <ol>
+        <li><strong>Start Simulation:</strong> Click "Start Simulation" to create and register 3 test stations and 4 mock devices</li>
+        <li><strong>Position Stations:</strong> Go to the Map page - test stations will appear as purple pulsing circles</li>
+        <li><strong>Drag & Drop:</strong> Use "Edit Station Positions" to drag the test stations to desired locations on your floor plan</li>
+        <li><strong>Watch Live Tracking:</strong> Once positioned, mock devices will move around and be tracked via triangulation in real-time</li>
+        <li><strong>Test Features:</strong> Customize device names/icons on the Devices page, test webhooks, etc.</li>
+        <li><strong>Stop When Ready:</strong> Click "Stop Simulation" when your real Raspberry Pi stations are ready</li>
+    </ol>
+    
+    <div style="background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 4px; padding: 15px; margin-top: 20px;">
+        <strong>💡 Tip:</strong> Test stations start unpositioned (purple pulsing circles). Position them anywhere on your map 
+        to create different triangulation scenarios. Move them around to see how device positions change based on station placement!
+        All simulated MACs start with "SIM:" prefix and won't interfere with real stations.
+    </div>
+</div>
+
+<style>
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+    }
+    
+    .btn-success {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background-color: #218838;
+    }
+    
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+    
+    .status-running {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .status-stopped {
+        background-color: #6c757d;
+        color: white;
+    }
+</style>
+
+<script>
+    // Configuration constants
+    const STATUS_POLL_INTERVAL = 3000; // Poll status every 3 seconds
+    
+    // Check status on page load
+    window.addEventListener('load', function() {
+        updateStatus();
+        loadSimulationInfo();
+        
+        // Update status periodically
+        setInterval(updateStatus, STATUS_POLL_INTERVAL);
+    });
+    
+    function updateStatus() {
+        fetch('/api/v1/simulation/status')
+            .then(response => response.json())
+            .then(data => {
+                const statusEl = document.getElementById('sim-status');
+                const startBtn = document.getElementById('start-btn');
+                const stopBtn = document.getElementById('stop-btn');
+                const infoDiv = document.getElementById('sim-info');
+                
+                if (data.enabled && data.running) {
+                    statusEl.textContent = '🟢 Running';
+                    statusEl.className = 'status-running';
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'inline-block';
+                    infoDiv.style.display = 'block';
+                } else {
+                    statusEl.textContent = '🔴 Stopped';
+                    statusEl.className = 'status-stopped';
+                    startBtn.style.display = 'inline-block';
+                    stopBtn.style.display = 'none';
+                    infoDiv.style.display = 'none';
+                }
+            })
+            .catch(err => console.error('Error checking status:', err));
+    }
+    
+    function loadSimulationInfo() {
+        fetch('/api/v1/simulation/info')
+            .then(response => response.json())
+            .then(data => {
+                // Populate station list
+                const stationList = document.getElementById('station-list');
+                stationList.innerHTML = '';
+                data.test_stations.forEach(station => {
+                    const li = document.createElement('li');
+                    li.textContent = `${station.name} - ${station.description}`;
+                    stationList.appendChild(li);
+                });
+                
+                // Populate device list
+                const deviceList = document.getElementById('device-list');
+                deviceList.innerHTML = '';
+                data.mock_devices.forEach(device => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<code>${device.mac}</code> (${device.protocol})`;
+                    deviceList.appendChild(li);
+                });
+            })
+            .catch(err => console.error('Error loading simulation info:', err));
+    }
+    
+    function startSimulation() {
+        if (!confirm('Start simulation mode? This will create 3 test stations and 4 mock devices.')) {
+            return;
+        }
+        
+        fetch('/api/v1/simulation/start', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                alert('✅ Simulation started! Go to the Map page to position the test stations.');
+                updateStatus();
+            } else {
+                alert('❌ Error: ' + data.message);
+            }
+        })
+        .catch(err => {
+            console.error('Error starting simulation:', err);
+            alert('❌ Error starting simulation. Check console for details.');
+        });
+    }
+    
+    function stopSimulation() {
+        if (!confirm('Stop simulation mode? Test stations will stop sending data.')) {
+            return;
+        }
+        
+        fetch('/api/v1/simulation/stop', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                alert('✅ Simulation stopped.');
+                updateStatus();
+            } else {
+                alert('❌ Error: ' + data.message);
+            }
+        })
+        .catch(err => {
+            console.error('Error stopping simulation:', err);
+            alert('❌ Error stopping simulation. Check console for details.');
+        });
+    }
+</script>
+{% endblock %}
